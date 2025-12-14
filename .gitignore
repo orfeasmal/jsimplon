@@ -1,0 +1,8 @@
+build/
+deps/build
+.clangd
+compile_flags.txt
+
+*.a
+*.o
+*.so
