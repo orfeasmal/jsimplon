@@ -2,5 +2,6 @@
 	"Name": "John Doe",
 	"Sex": "Male",
 	"Age": 19,
-	"Ethnicity": "Ethiopian"
+	"Ethnicity": "Ethiopian",
+	"Bros": ["Bro1", "Bro2", "Bro3"]
 }
