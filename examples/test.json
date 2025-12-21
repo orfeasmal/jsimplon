@@ -1,7 +1,16 @@
-{
-	"Name": "John Doe",
-	"Sex": "Male",
-	"Age": 19,
-	"Ethnicity": "Ethiopian",
-	"Bros": ["Bro1", "Bro2", "Bro3"]
-}
+[
+a	{
+		"Name": "John Doe",
+		"Sex": "Male",
+		"Age": 19,
+		"Ethnicity": "Ethiopian",
+		"Bros": ["Bro1", "Bro2", "Bro3"]
+	},
+	{
+		"Name": "Bro1",
+		"Sex": "Female",
+		"Age": 129,
+		"Ethnicity": "Jamaican",
+		"Bros": ["John Doe", "Bro2", "Bro3"]
+	}
+]

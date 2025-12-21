@@ -1,0 +1,12 @@
+<value> ::= 
+	| <object>
+	| <array>
+	| STRING
+	| NUMBER
+	| "true"
+	| "false"
+	| "null"
+
+<member> ::= STRING ":" <value>
+<object> ::= "{" ( <member> ("," <member>)* )? "}"
+<array>  ::= "[" (<value> ("," <value>)* )? "]"

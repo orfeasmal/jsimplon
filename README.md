@@ -8,4 +8,5 @@ $ make clean run
 
 # How to use
 Take a look at [examples/example.c](examples/example.c)
+
 More documentation coming soon.......
