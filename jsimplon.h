@@ -133,7 +133,7 @@ JSIMPLON_DEF void jsimplon_array_destroy(JSimplON_Array *array);
 /* Lexer functions */
 JSIMPLON_DEF JSimplON_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src);
 JSIMPLON_DEF           void jsimplon_lexer_destroy(JSimplON_Lexer *lexer);
-// TODO: Add negative and floating point numbers, null, true and false
+// TODO: Add support for escape sequences in strings
 JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer);
 JSIMPLON_DEF    const char *jsimplon_token_to_str(JSimplON_Token token);
 
@@ -179,7 +179,10 @@ JSIMPLON_DEF JSimplON *jsimplon_create_from_str(char **error, const char *src)
 		);
 	}
 
-	// printf("%lf\n", tree->root_value.array_value.values[0].object_value.members[2].value.number_value);
+/*
+	printf("%s: ", tree->root_value.array_value.values[1].object_value.members[4].key);
+	printf("%s\n", tree->root_value.array_value.values[1].object_value.members[4].value.array_value.values[1].string_value);
+*/
 
 	jsimplon_parser_destroy(&parser);
 
@@ -260,7 +263,6 @@ JSIMPLON_DEF JSimplON_Value jsimplon_parser_parse_value(JSimplON_Parser *parser)
 
 	switch (parser->token.type) {
 		case JSON_TOKEN_END:
-			// TODO: Handle
 			break;
 		case JSON_TOKEN_STRING_LITERAL:
 			value.type = JSON_VALUE_STRING;
@@ -573,6 +575,8 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 	bool looking_for_string = false;
 	bool escape_char_in_effect = false;
 
+	bool looking_for_tfl = false; // tfl = true, false, null
+
 	bool looking_for_number = false;
 	bool dot_in_effect = false;
 	bool exponent_in_effect = false;
@@ -771,6 +775,44 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 
 			continue;
 		}
+
+		if (isalpha(c)) {
+			if (!looking_for_tfl) {
+				looking_for_tfl = true;
+
+				lexeme_index = 0;
+				memset(lexer->lexeme, 0, JSIMPLON_STRING_LITERAL_MAX_LENGTH + 1);
+			}
+
+			lexer->lexeme[lexeme_index++] = c;
+
+			continue;
+		}
+		else if (looking_for_tfl) {
+			if (strcmp(lexer->lexeme, "true") == 0) {
+				token.type = JSON_TOKEN_TRUE;
+			}
+			else if (strcmp(lexer->lexeme, "false") == 0) {
+				token.type = JSON_TOKEN_NULL;
+			}
+			else if (strcmp(lexer->lexeme, "null") == 0) {
+				token.type = JSON_TOKEN_NULL;
+			}
+			else {
+				jsimplon_append_error(
+					lexer->error, lexer->error_size,
+					"lexer error: %u:%u: unknown character sequence '%s'\n",
+					token.line, token.column,
+					lexer->lexeme,
+					JSIMPLON_NUMBER_LITERAL_MAX_LENGTH
+				);
+				++lexer->error_count;
+
+			}
+
+			break;
+		}
+
 
 		if (isspace(c)) {
 			if (c == '\n') {
