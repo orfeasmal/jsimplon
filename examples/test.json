@@ -1,15 +1,15 @@
 [
-a	{
+	{
 		"Name": "John Doe",
 		"Sex": "Male",
-		"Age": 19,
+		"Age": -123.52314e3,
 		"Ethnicity": "Ethiopian",
 		"Bros": ["Bro1", "Bro2", "Bro3"]
 	},
 	{
 		"Name": "Bro1",
 		"Sex": "Female",
-		"Age": 129,
+		"Age": 129.12e100,
 		"Ethnicity": "Jamaican",
 		"Bros": ["John Doe", "Bro2", "Bro3"]
 	}

@@ -55,7 +55,8 @@ typedef struct {
 	const char *src;
 	char *lexeme;
 	size_t index;
-	uint32_t line, column;
+	size_t begin_of_line;
+	uint32_t line;
 
 	char **error;
 	size_t *error_size;
@@ -70,6 +71,7 @@ typedef struct {
 } JSimplON_Parser;
 
 typedef enum {
+	JSON_VALUE_UNINITIALISED,
 	JSON_VALUE_OBJECT,
 	JSON_VALUE_ARRAY,
 	JSON_VALUE_STRING,
@@ -177,17 +179,19 @@ JSIMPLON_DEF JSimplON *jsimplon_create_from_str(char **error, const char *src)
 		);
 	}
 
+	// printf("%lf\n", tree->root_value.array_value.values[0].object_value.members[2].value.number_value);
+
 	jsimplon_parser_destroy(&parser);
 
 	if (!success) {
-		free(tree);
+		jsimplon_destroy(tree);
 		return NULL;
 	}
-	else {
-		free(*error);
-		*error = NULL;
-		return tree;
-	}
+
+	free(*error);
+	*error = NULL;
+
+	return tree;
 }
 
 JSIMPLON_DEF JSimplON *jsimplon_create_from_file(char **error, const char *file_name)
@@ -437,28 +441,42 @@ JSIMPLON_DEF void jsimplon_value_destroy(JSimplON_Value *value)
 			jsimplon_array_destroy(&value->array_value);
 			break;
 		default:
-			return;
+			break;
 	}
+
+	memset(value, 0, sizeof *value);
 }
 
 JSIMPLON_DEF void jsimplon_object_destroy(JSimplON_Object *object)
 {
+	if (object->members == NULL)
+		return;
+
 	for (uint32_t i = 0; i < object->members_count; ++i)
 		jsimplon_member_destroy(&object->members[i]);
 	free(object->members);
+	memset(object, 0, sizeof *object);
 }
 
 JSIMPLON_DEF void jsimplon_member_destroy(JSimplON_Member *member)
 {
+	if (member->key == NULL)
+		return;
+
 	free(member->key);
 	jsimplon_value_destroy(&member->value);
+	memset(member, 0, sizeof *member);
 }
 
 JSIMPLON_DEF void jsimplon_array_destroy(JSimplON_Array *array)
 {
+	if (array->values == NULL)
+		return;
+
 	for (uint32_t i = 0; i < array->values_count; ++i)
 		jsimplon_value_destroy(&array->values[i]);
 	free(array->values);
+	memset(array, 0, sizeof *array);
 }
 
 JSIMPLON_DEF JSimplON_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src)
@@ -480,6 +498,74 @@ JSIMPLON_DEF void jsimplon_lexer_destroy(JSimplON_Lexer *lexer)
 	free(lexer->lexeme);
 }
 
+/*
+ ** TODO: Refactor lexer to remove spaghetti code!!! **
+
+JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *l)
+{
+	char c;
+	size_t lexeme_index;
+	JSimplON_Token token = {
+		.line = l->line,
+		.column = l->index - l->begin_of_line + 1
+	};
+
+	while (isspace(c = l->src[l->index]))
+		if (c == '\n') {
+			l->begin_of_line = l->index;
+			++l->line;
+		}
+
+		++l->index;
+	}
+
+	if (c == '\"') {
+		++l->index;
+
+		while ((c = l->src[l->index]) != '\"') {
+			
+		}
+	}
+
+	switch (c) {
+		case '\0':
+			break;
+		case '{':
+			token.type = JSON_TOKEN_LBRACE;
+			break;
+		case '}':
+			token.type = JSON_TOKEN_RBRACE;
+			break;
+		case '[':
+			token.type = JSON_TOKEN_LBRACKET;
+			break;
+		case ']':
+			token.type = JSON_TOKEN_RBRACKET;
+			break;
+		case ':':
+			token.type = JSON_TOKEN_COLON;
+			break;
+		case ',':
+			token.type = JSON_TOKEN_COMMA;
+			break;
+		default:
+			jsimplon_append_error(
+				l->error, l->error_size,
+				"lexer error: %u:%u: stray '%c'\n",
+				token.line, token.column,
+				c
+			);
+			++l->error_count;
+
+			break;
+	}
+
+	++l->index;
+
+	return token;
+}
+*/
+
 JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 {
 	size_t lexeme_index;
@@ -488,11 +574,13 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 	bool escape_char_in_effect = false;
 
 	bool looking_for_number = false;
-	// bool dot_in_effect = false // lol
+	bool dot_in_effect = false;
+	bool exponent_in_effect = false;
+	bool exponent_neg_in_effect = false;
 
 	JSimplON_Token token = {
 		.line = lexer->line,
-		.column = lexer->column
+		.column = lexer->index - lexer->begin_of_line
 	};
 
 	do {
@@ -504,7 +592,6 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 		}
 
 		++lexer->index;
-		++lexer->column;
 
 		if (looking_for_string) {
 			if (c == '\\') {
@@ -553,15 +640,13 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 
 			continue;
 		}
-		else {
-			if (c == '\"') {
-				looking_for_string = true;
+		else if (c == '\"') {
+			looking_for_string = true;
 
-				lexeme_index = 0;
-				memset(lexer->lexeme, 0, JSIMPLON_STRING_LITERAL_MAX_LENGTH + 1);
+			lexeme_index = 0;
+			memset(lexer->lexeme, 0, JSIMPLON_STRING_LITERAL_MAX_LENGTH + 1);
 
-				continue;
-			}
+			continue;
 		}
 
 		if (isdigit(c)) {
@@ -591,20 +676,80 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 			continue;
 		}
 		else if (looking_for_number) {
-			// if (c == '.') {
-			// 	if (dot_in_effect) {
-			// 		jsimplon_append_error(
-			// 			lexer->error, lexer->error_size,
-			// 			"lexer error: %u:%u: number literal '%s.' has more than one decimal place\n",
-			// 			lexer->line, lexer->column,
-			// 			lexer->lexeme
-			// 		);
+			if (c == '.') {
+				if (dot_in_effect) {
+					jsimplon_append_error(
+						lexer->error, lexer->error_size,
+						"lexer error: %u:%u: number literal '%s.' has more than one decimal place\n",
+						token.line, token.column,
+						lexer->lexeme
+					);
 
-			// 		break;
-			// 	}
+					break;
+				}
 
-			// 	dot_in_effect = true;
-			// }
+				if (exponent_in_effect) {
+					jsimplon_append_error(
+						lexer->error, lexer->error_size,
+						"lexer error: %u:%u: floating point exponent in number literal '%s.'\n",
+						token.line, token.column,
+						lexer->lexeme
+					);
+
+					break;
+				}
+
+				dot_in_effect = true;
+				lexer->lexeme[lexeme_index++] = c;
+
+				continue;
+			}
+			else if (c == 'e') {
+				if (exponent_in_effect) {
+					jsimplon_append_error(
+						lexer->error, lexer->error_size,
+						"lexer error: %u:%u: number literal '%se' has more than one exponent marker\n",
+						token.line, token.column,
+						lexer->lexeme
+					);
+
+					break;
+				}
+
+				if (lexer->lexeme[lexeme_index - 1] == '.') {
+					jsimplon_append_error(
+						lexer->error, lexer->error_size,
+						"lexer error: %u:%u: number literal '%se' has exponent marker right after '.'\n",
+						token.line, token.column,
+						lexer->lexeme
+					);
+
+					break;
+				}
+
+				exponent_in_effect = true;
+				lexer->lexeme[lexeme_index++] = c;
+
+				continue;
+			}
+
+			if (exponent_in_effect && c == '-') {
+				if (exponent_neg_in_effect) {
+					jsimplon_append_error(
+						lexer->error, lexer->error_size,
+						"lexer error: %u:%u: number literal '%s-' has more than one negation sign in the exponent\n",
+						token.line, token.column,
+						lexer->lexeme
+					);
+
+					break;
+				}
+
+				exponent_neg_in_effect = true;
+				lexer->lexeme[lexeme_index++] = c;
+
+				continue;
+			}
 
 			looking_for_number = false;
 
@@ -616,10 +761,20 @@ JSIMPLON_DEF JSimplON_Token jsimplon_lexer_next_token(JSimplON_Lexer *lexer)
 
 			break;
 		}
+		else if (c == '-') {
+			looking_for_number = true;
+
+			lexeme_index = 0;
+			memset(lexer->lexeme, 0, JSIMPLON_NUMBER_LITERAL_MAX_LENGTH + 1);
+
+			lexer->lexeme[lexeme_index++] = c;
+
+			continue;
+		}
 
 		if (isspace(c)) {
 			if (c == '\n') {
-				lexer->column = 0;
+				lexer->begin_of_line = lexer->index;
 				++lexer->line;
 			}
 
