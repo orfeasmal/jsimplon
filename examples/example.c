@@ -75,16 +75,13 @@ int main(int argc, char **argv)
 		jsimplon_value_set_str(temp, bros[i]);
 	}
 
-	char *output = jsimplon_tree_to_str(&error, root_value);
+	jsimplon_tree_to_file(&error, root_value, "bro2.json");
 	if (error != NULL) {
 		fprintf(stderr, "jsimplon error: %s\n", error);
 		free(error);
 		jsimplon_tree_destroy(root_value);
 		return 1;
 	}
-
-	printf("%s\n", output);
-	free(output);
 
 	jsimplon_tree_destroy(root_value);
 

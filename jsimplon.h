@@ -35,16 +35,16 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_root_create(void);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *src);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *file_name);
 JSIMPLON_DEF char *          jsimplon_tree_to_str(char **error, const Jsimplon_Value *root_value);
-JSIMPLON_DEF int             jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name);
+JSIMPLON_DEF int             jsimplon_tree_to_file(char **error, const Jsimplon_Value *root_value, const char *file_name);
 JSIMPLON_DEF int             jsimplon_tree_destroy(Jsimplon_Value *root_value);
 
 #ifndef JSIMPLON_SUCCESS
 #define JSIMPLON_SUCCESS 0
 #endif // JSIMPLON_SUCCESS
 
-#ifndef JSIMPLON_FAIL
-#define JSIMPLON_FAIL 1
-#endif // JSIMPLON_FAIL
+#ifndef JSIMPLON_FAILURE
+#define JSIMPLON_FAILURE 1
+#endif // JSIMPLON_FAILURE
 
 /* Setters */
 
@@ -340,15 +340,35 @@ JSIMPLON_DEF char *jsimplon_tree_to_str(char **error, const Jsimplon_Value *root
 	return serialiser.str;
 }
 
-JSIMPLON_DEF int jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name)
+JSIMPLON_DEF int jsimplon_tree_to_file(char **error, const Jsimplon_Value *root_value, const char *file_name)
 {
-	return -1;
+	char *str = jsimplon_tree_to_str(error, root_value);
+
+	size_t error_size;
+
+	if (str == NULL)
+		return JSIMPLON_FAILURE;
+
+	if (error != NULL) {
+		error_size = 128;
+		*error = calloc(error_size, sizeof *(*error));
+	}
+
+	int status = jsimplon_file_write(error, &error_size, file_name, str);
+	free(str);
+
+	if (status == JSIMPLON_SUCCESS) {
+		free(*error);
+		*error = NULL;
+	}
+
+	return status;
 }
 
 JSIMPLON_DEF int jsimplon_tree_destroy(Jsimplon_Value *tree)
 {
 	if (tree == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	jsimplon_value_destroy(tree);
 	free(tree);
@@ -364,7 +384,7 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_root_create(void)
 JSIMPLON_DEF int jsimplon_value_set_str(Jsimplon_Value *value, const char *str)
 {
 	if (value == NULL || str == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	jsimplon_value_destroy(value);
 	value->type = JSIMPLON_VALUE_STRING;
@@ -377,7 +397,7 @@ JSIMPLON_DEF int jsimplon_value_set_str(Jsimplon_Value *value, const char *str)
 JSIMPLON_DEF int jsimplon_value_set_number(Jsimplon_Value *value, double number)
 {
 	if (value == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	jsimplon_value_destroy(value);
 	value->type = JSIMPLON_VALUE_NUMBER;
@@ -389,7 +409,7 @@ JSIMPLON_DEF int jsimplon_value_set_number(Jsimplon_Value *value, double number)
 JSIMPLON_DEF int jsimplon_value_set_bool(Jsimplon_Value *value, bool bool_value)
 {
 	if (value == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	jsimplon_value_destroy(value);
 	value->type = JSIMPLON_VALUE_BOOL;
@@ -401,7 +421,7 @@ JSIMPLON_DEF int jsimplon_value_set_bool(Jsimplon_Value *value, bool bool_value)
 JSIMPLON_DEF int jsimplon_value_set_null(Jsimplon_Value *value)
 {
 	if (value == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	jsimplon_value_destroy(value);
 	value->type = JSIMPLON_VALUE_NULL;
@@ -460,7 +480,7 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_object_add_member_value(Jsimplon_Object *o
 JSIMPLON_DEF int jsimplon_object_add_member_str(Jsimplon_Object *object, const char *key, const char *str)
 {
 	if (object == NULL || key == NULL || str == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
 	jsimplon_value_set_str(value, str);
@@ -471,7 +491,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_str(Jsimplon_Object *object, const c
 JSIMPLON_DEF int jsimplon_object_add_member_number(Jsimplon_Object *object, const char *key, double number)
 {
 	if (object == NULL || key == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
 	jsimplon_value_set_number(value, number);
@@ -482,7 +502,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_number(Jsimplon_Object *object, cons
 JSIMPLON_DEF int jsimplon_object_add_member_bool(Jsimplon_Object *object, const char *key, bool bool_value)
 {
 	if (object == NULL || key == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
 	jsimplon_value_set_bool(value, bool_value);
@@ -493,7 +513,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_bool(Jsimplon_Object *object, const 
 JSIMPLON_DEF int jsimplon_object_add_member_null(Jsimplon_Object *object, const char *key)
 {
 	if (object == NULL || key == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
 	jsimplon_value_set_null(value);
@@ -522,7 +542,7 @@ JSIMPLON_DEF Jsimplon_Array *jsimplon_object_add_member_array(Jsimplon_Object *o
 JSIMPLON_DEF int jsimplon_object_remove_member(Jsimplon_Object *object, const char *key)
 {
 	if (object == NULL || key == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	for (uint32_t i = 0; i < object->members_count; ++i) {
 		Jsimplon_Member *member = &object->members[i];
@@ -540,13 +560,13 @@ JSIMPLON_DEF int jsimplon_object_remove_member(Jsimplon_Object *object, const ch
 		}
 	}
 
-	return JSIMPLON_FAIL;
+	return JSIMPLON_FAILURE;
 }
 
 JSIMPLON_DEF int jsimplon_member_set_key(Jsimplon_Member *member, const char *new_key)
 {
 	if (member == NULL || new_key == NULL)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	member->key = malloc(strlen(new_key) + 1);
 	strcpy(member->key, new_key);
@@ -595,7 +615,7 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_array_insert_value_at_index(Jsimplon_Array
 JSIMPLON_DEF int jsimplon_array_remove_value_at_index(Jsimplon_Array *array, size_t index)
 {
 	if (array == NULL || index >= array->values_count - 1)
-		return JSIMPLON_FAIL;
+		return JSIMPLON_FAILURE;
 
 	if (index < array->values_count - 1)
 		memmove(&array->values[index], &array->values[index + 1], (array->values_count - index - 1) * (sizeof *array->values));
@@ -1534,24 +1554,24 @@ jsimplon_file_read_defer:
 
 JSIMPLON_DEF_INTERNAL int jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src)
 {
-	int status = 0;
+	int status = JSIMPLON_SUCCESS;
 
 	FILE *file = fopen(file_name, "wb+");
 	if (file == NULL) {
-		status = 1;
+		status = JSIMPLON_FAILURE;
 		goto jsimplon_file_write_defer;
 	}
 
 	fwrite(src, (sizeof *src), strlen(src), file);
 
 	if (ferror(file))
-		status = 1;
+		status = JSIMPLON_FAILURE;
 
 jsimplon_file_write_defer:
 	if (file != NULL)
 		fclose(file);
 
-	if (status != 0) {
+	if (status != JSIMPLON_FAILURE) {
 		jsimplon_append_str(
 			error, error_size,
 			"file write error: %s",
