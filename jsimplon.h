@@ -1,3 +1,6 @@
+// TODO: Add support for escape sequences in strings
+
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -6,7 +9,7 @@
 #define JSIMPLON_H_
 
 #ifndef JSIMPLON_DEF
-#define JSIMPLON_DEF static
+#define JSIMPLON_DEF static inline
 #endif // JSIMPLON_DEF
 
 typedef struct jsimplon_value Jsimplon_Value;
@@ -15,44 +18,88 @@ typedef struct jsimplon_member Jsimplon_Member;
 typedef struct jsimplon_array Jsimplon_Array;
 
 typedef enum {
-	JSON_VALUE_UNINITIALISED,
-	JSON_VALUE_OBJECT,
-	JSON_VALUE_ARRAY,
-	JSON_VALUE_STRING,
-	JSON_VALUE_NUMBER,
-	JSON_VALUE_BOOL,
-	JSON_VALUE_NULL
+	JSIMPLON_VALUE_UNINITIALISED,
+	JSIMPLON_VALUE_OBJECT,
+	JSIMPLON_VALUE_ARRAY,
+	JSIMPLON_VALUE_STRING,
+	JSIMPLON_VALUE_NUMBER,
+	JSIMPLON_VALUE_BOOL,
+	JSIMPLON_VALUE_NULL
 } Jsimplon_ValueType;
+
+/* API Functions */
 
 // error is opt-out so you can pass in NULL if you don't care about the message
 // it also needs to be freed
+JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_root_create(void);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *src);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *file_name);
-JSIMPLON_DEF void            jsimplon_tree_destroy(Jsimplon_Value *root_value);
+JSIMPLON_DEF char *          jsimplon_tree_to_str(char **error, const Jsimplon_Value *value);
+JSIMPLON_DEF int             jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name);
+JSIMPLON_DEF int             jsimplon_tree_destroy(Jsimplon_Value *root_value);
 
-JSIMPLON_DEF Jsimplon_ValueType jsimplon_get_value_type(Jsimplon_Value *value);
-JSIMPLON_DEF Jsimplon_Object *  jsimplon_get_value_object(Jsimplon_Value *value);
-JSIMPLON_DEF Jsimplon_Array *   jsimplon_get_value_array(Jsimplon_Value *value);
-JSIMPLON_DEF const char *       jsimplon_get_value_str(Jsimplon_Value *value);
-JSIMPLON_DEF double             jsimplon_get_value_number(Jsimplon_Value *value);
-JSIMPLON_DEF bool               jsimplon_get_value_bool(Jsimplon_Value *value);
+#ifndef JSIMPLON_SUCCESS
+#define JSIMPLON_SUCCESS 0
+#endif // JSIMPLON_SUCCESS
 
-JSIMPLON_DEF Jsimplon_Member *  jsimplon_get_object_member(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF size_t             jsimplon_get_object_member_count(Jsimplon_Object *object);
-JSIMPLON_DEF Jsimplon_Member *  jsimplon_get_object_member_index(Jsimplon_Object *object, size_t index);
-JSIMPLON_DEF Jsimplon_ValueType jsimplon_get_object_member_type(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF Jsimplon_Value *   jsimplon_get_object_member_value(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF Jsimplon_Object *  jsimplon_get_object_member_object(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF Jsimplon_Array *   jsimplon_get_object_member_array(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF const char *       jsimplon_get_object_member_str(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF double             jsimplon_get_object_member_number(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF bool               jsimplon_get_object_member_bool(Jsimplon_Object *object, const char *key);
+#ifndef JSIMPLON_FAIL
+#define JSIMPLON_FAIL 1
+#endif // JSIMPLON_FAIL
 
-JSIMPLON_DEF const char *       jsimplon_get_member_key(Jsimplon_Member *member);
-JSIMPLON_DEF Jsimplon_Value *   jsimplon_get_member_value(Jsimplon_Member *member);
+/* Setters */
 
-JSIMPLON_DEF size_t             jsimplon_get_array_count(Jsimplon_Array *array);
-JSIMPLON_DEF Jsimplon_Value *   jsimplon_get_array_index(Jsimplon_Array *array, size_t index);
+JSIMPLON_DEF int              jsimplon_value_set_str(Jsimplon_Value *value, const char *str);
+JSIMPLON_DEF int              jsimplon_value_set_number(Jsimplon_Value *value, double number);
+JSIMPLON_DEF int              jsimplon_value_set_bool(Jsimplon_Value *value, bool bool_value);
+JSIMPLON_DEF int              jsimplon_value_set_null(Jsimplon_Value *value);
+JSIMPLON_DEF Jsimplon_Object *jsimplon_value_set_object(Jsimplon_Value *value);
+JSIMPLON_DEF Jsimplon_Array * jsimplon_value_set_array(Jsimplon_Value *value);
+
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_add_member(Jsimplon_Object *object);
+JSIMPLON_DEF Jsimplon_Value * jsimplon_object_add_member_value(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF int              jsimplon_object_add_member_str(Jsimplon_Object *object, const char *key, const char *str);
+JSIMPLON_DEF int              jsimplon_object_add_member_number(Jsimplon_Object *object, const char *key, double number);
+JSIMPLON_DEF int              jsimplon_object_add_member_bool(Jsimplon_Object *object, const char *key, bool bool_value);
+JSIMPLON_DEF int              jsimplon_object_add_member_null(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Object *jsimplon_object_add_member_object(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Array * jsimplon_object_add_member_array(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF int              jsimplon_object_remove_member(Jsimplon_Object *object, const char *key);
+
+JSIMPLON_DEF int              jsimplon_member_set_key(Jsimplon_Member *member, const char *new_key);
+JSIMPLON_DEF Jsimplon_Value * jsimplon_member_set_value(Jsimplon_Member *member); // Kind of useless
+
+JSIMPLON_DEF Jsimplon_Value * jsimplon_array_push_value(Jsimplon_Array *array);
+JSIMPLON_DEF Jsimplon_Value * jsimplon_array_insert_value_at_index(Jsimplon_Array *array, size_t index);
+JSIMPLON_DEF int              jsimplon_array_remove_value_at_index(Jsimplon_Array *array, size_t index);
+
+/* Getters */
+
+// If a getter that returns a pointer fails, it will return NULL
+// If a getter that doesn't return a pointer fails, I don't know
+
+JSIMPLON_DEF Jsimplon_ValueType jsimplon_value_get_type(Jsimplon_Value *value);
+JSIMPLON_DEF Jsimplon_Object *  jsimplon_value_get_object(Jsimplon_Value *value);
+JSIMPLON_DEF Jsimplon_Array *   jsimplon_value_get_array(Jsimplon_Value *value);
+JSIMPLON_DEF const char *       jsimplon_value_get_str(Jsimplon_Value *value);
+JSIMPLON_DEF double             jsimplon_value_get_number(Jsimplon_Value *value); // returns nan if failed
+JSIMPLON_DEF int                jsimplon_value_get_bool(Jsimplon_Value *value); // returns -1 if failed
+
+JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_member_get(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF size_t             jsimplon_object_member_get_count(Jsimplon_Object *object);
+JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_member_get_at_index(Jsimplon_Object *object, size_t index);
+JSIMPLON_DEF Jsimplon_ValueType jsimplon_object_member_get_type(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Value *   jsimplon_object_member_get_value(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Object *  jsimplon_object_member_get_object(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Array *   jsimplon_object_member_get_array(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF const char *       jsimplon_object_member_get_str(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF double             jsimplon_object_member_get_number(Jsimplon_Object *object, const char *key); // returns nan if failed
+JSIMPLON_DEF int                jsimplon_object_member_get_bool(Jsimplon_Object *object, const char *key); // returns -1 if failed
+
+JSIMPLON_DEF const char *       jsimplon_member_get_key(Jsimplon_Member *member);
+JSIMPLON_DEF Jsimplon_Value *   jsimplon_member_get_value(Jsimplon_Member *member);
+
+JSIMPLON_DEF size_t             jsimplon_array_get_count(Jsimplon_Array *array);
+JSIMPLON_DEF Jsimplon_Value *   jsimplon_array_get_value_at_index(Jsimplon_Array *array, size_t index);
 
 #ifdef JSIMPLON_IMPLEMENTATION
 
@@ -63,19 +110,21 @@ JSIMPLON_DEF Jsimplon_Value *   jsimplon_get_array_index(Jsimplon_Array *array, 
 #include <stdarg.h>
 #include <string.h>
 
+#define JSIMPLON_DEF_INTERNAL static
+
 typedef enum {
-	JSON_TOKEN_END,
-	JSON_TOKEN_STRING_LITERAL,
-	JSON_TOKEN_NUMBER_LITERAL,
-	JSON_TOKEN_TRUE,
-	JSON_TOKEN_FALSE,
-	JSON_TOKEN_NULL,
-	JSON_TOKEN_LBRACE,
-	JSON_TOKEN_RBRACE,
-	JSON_TOKEN_LBRACKET,
-	JSON_TOKEN_RBRACKET,
-	JSON_TOKEN_COMMA,
-	JSON_TOKEN_COLON
+	JSIMPLON_TOKEN_END,
+	JSIMPLON_TOKEN_STRING_LITERAL,
+	JSIMPLON_TOKEN_NUMBER_LITERAL,
+	JSIMPLON_TOKEN_TRUE,
+	JSIMPLON_TOKEN_FALSE,
+	JSIMPLON_TOKEN_NULL,
+	JSIMPLON_TOKEN_LBRACE,
+	JSIMPLON_TOKEN_RBRACE,
+	JSIMPLON_TOKEN_LBRACKET,
+	JSIMPLON_TOKEN_RBRACKET,
+	JSIMPLON_TOKEN_COMMA,
+	JSIMPLON_TOKEN_COLON
 } Jsimplon_TokenType;
 
 typedef struct {
@@ -138,11 +187,11 @@ typedef struct jsimplon_member {
 
 /* Parser functions */
 JSIMPLON_DEF Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_size, const char *src);
-JSIMPLON_DEF            void jsimplon_parser_destroy(Jsimplon_Parser *parser);
-JSIMPLON_DEF  Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser);
+JSIMPLON_DEF void            jsimplon_parser_destroy(Jsimplon_Parser *parser);
+JSIMPLON_DEF Jsimplon_Value  jsimplon_parser_parse_value(Jsimplon_Parser *parser);
 JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parser);
 JSIMPLON_DEF Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parser);
-JSIMPLON_DEF  Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser);
+JSIMPLON_DEF Jsimplon_Array  jsimplon_parser_parse_array(Jsimplon_Parser *parser);
 
 JSIMPLON_DEF void jsimplon_value_destroy(Jsimplon_Value *value);
 JSIMPLON_DEF void jsimplon_object_destroy(Jsimplon_Object *object);
@@ -151,19 +200,18 @@ JSIMPLON_DEF void jsimplon_array_destroy(Jsimplon_Array *array);
 
 /* Lexer functions */
 JSIMPLON_DEF Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src);
-JSIMPLON_DEF           void jsimplon_lexer_destroy(Jsimplon_Lexer *lexer);
-// TODO: Add support for escape sequences in strings
+JSIMPLON_DEF void           jsimplon_lexer_destroy(Jsimplon_Lexer *lexer);
 JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer);
-JSIMPLON_DEF    const char *jsimplon_token_to_str(Jsimplon_Token token);
+JSIMPLON_DEF const char *   jsimplon_token_to_str(Jsimplon_Token token);
 
 /* Utility functions */
-JSIMPLON_DEF  void jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...);
+JSIMPLON_DEF void  jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...);
 JSIMPLON_DEF char *jsimplon_file_read(char **error, size_t *error_size, const char *file_name); // Returns NULL if failed
-JSIMPLON_DEF   int jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src); // Returns 0 if success anything else if failed
+JSIMPLON_DEF int   jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src); // Returns 0 if success anything else if failed
 
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *src)
 {
-	Jsimplon_Value *tree = malloc(sizeof *tree);
+	Jsimplon_Value *tree = jsimplon_tree_root_create();
 
 	size_t error_size = 0;
 	if (error != NULL) {
@@ -233,47 +281,330 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *f
 	return tree;
 }
 
-JSIMPLON_DEF void jsimplon_tree_destroy(Jsimplon_Value *tree)
+JSIMPLON_DEF char *jsimplon_tree_to_str(char **error, const Jsimplon_Value *value)
+{
+	// TODO: implement
+
+	return NULL;
+}
+
+JSIMPLON_DEF int jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name)
+{
+	// TODO: implement
+
+	return -1;
+}
+
+JSIMPLON_DEF int jsimplon_tree_destroy(Jsimplon_Value *tree)
 {
 	if (tree == NULL)
-		return;
+		return JSIMPLON_FAIL;
 
 	jsimplon_value_destroy(tree);
 	free(tree);
+
+	return JSIMPLON_SUCCESS;
 }
 
-JSIMPLON_DEF Jsimplon_ValueType jsimplon_get_value_type(Jsimplon_Value *value)
+JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_root_create(void)
+{
+	return calloc(1, sizeof(Jsimplon_Value));
+}
+
+JSIMPLON_DEF int jsimplon_value_set_str(Jsimplon_Value *value, const char *str)
+{
+	if (value == NULL || str == NULL)
+		return JSIMPLON_FAIL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_STRING;
+	value->string_value = malloc(strlen(str) + 1);
+	strcpy(value->string_value, str);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_value_set_number(Jsimplon_Value *value, double number)
+{
+	if (value == NULL)
+		return JSIMPLON_FAIL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_NUMBER;
+	value->number_value = number;
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_value_set_bool(Jsimplon_Value *value, bool bool_value)
+{
+	if (value == NULL)
+		return JSIMPLON_FAIL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_BOOL;
+	value->bool_value = bool_value;
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_value_set_null(Jsimplon_Value *value)
+{
+	if (value == NULL)
+		return JSIMPLON_FAIL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_NULL;
+	value->null_value = NULL;
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF Jsimplon_Object *jsimplon_value_set_object(Jsimplon_Value *value)
+{
+	if (value == NULL)
+		return NULL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_OBJECT;
+	value->object_value = (Jsimplon_Object) { 0 };
+
+	return &value->object_value;
+}
+
+JSIMPLON_DEF Jsimplon_Array *jsimplon_value_set_array(Jsimplon_Value *value)
+{
+	if (value == NULL)
+		return NULL;
+
+	jsimplon_value_destroy(value);
+	value->type = JSIMPLON_VALUE_ARRAY;
+	value->array_value = (Jsimplon_Array) { 0 };
+
+	return &value->array_value;
+}
+
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_add_member(Jsimplon_Object *object)
+{
+	if (object == NULL)
+		return NULL;
+
+	object->members = realloc(object->members, (object->members_count + 1) * (sizeof *object->members));
+	Jsimplon_Member *member = &object->members[object->members_count++];
+	*member = (Jsimplon_Member) { 0 };
+
+	return member;
+}
+
+JSIMPLON_DEF Jsimplon_Value *jsimplon_object_add_member_value(Jsimplon_Object *object, const char *key)
+{
+	if (object == NULL || key == NULL)
+		return NULL;
+
+	Jsimplon_Member *member = jsimplon_object_add_member(object);
+	jsimplon_member_set_key(member, key);
+
+	return &member->value;
+}
+
+JSIMPLON_DEF int jsimplon_object_add_member_str(Jsimplon_Object *object, const char *key, const char *str)
+{
+	if (object == NULL || key == NULL || str == NULL)
+		return JSIMPLON_FAIL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	jsimplon_value_set_str(value, str);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_object_add_member_number(Jsimplon_Object *object, const char *key, double number)
+{
+	if (object == NULL || key == NULL)
+		return JSIMPLON_FAIL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	jsimplon_value_set_number(value, number);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_object_add_member_bool(Jsimplon_Object *object, const char *key, bool bool_value)
+{
+	if (object == NULL || key == NULL)
+		return JSIMPLON_FAIL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	jsimplon_value_set_bool(value, bool_value);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF int jsimplon_object_add_member_null(Jsimplon_Object *object, const char *key)
+{
+	if (object == NULL || key == NULL)
+		return JSIMPLON_FAIL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	jsimplon_value_set_null(value);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF Jsimplon_Object *jsimplon_object_add_member_object(Jsimplon_Object *object, const char *key)
+{
+	if (object == NULL || key == NULL)
+		return NULL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	return jsimplon_value_set_object(value);
+}
+
+JSIMPLON_DEF Jsimplon_Array *jsimplon_object_add_member_array(Jsimplon_Object *object, const char *key)
+{
+	if (object == NULL || key == NULL)
+		return NULL;
+
+	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
+	return jsimplon_value_set_array(value);
+}
+
+JSIMPLON_DEF int jsimplon_object_remove_member(Jsimplon_Object *object, const char *key)
+{
+	if (object == NULL || key == NULL)
+		return JSIMPLON_FAIL;
+
+	for (uint32_t i = 0; i < object->members_count; ++i) {
+		Jsimplon_Member *member = &object->members[i];
+
+		if (strcmp(member->key, key) == 0) {
+			free(member->key);
+			jsimplon_value_destroy(&member->value);
+
+			if (i < object->members_count - 1)
+				memmove(&object->members[i], &object->members[i + 1], (object->members_count - i - 1) * (sizeof *object->members));
+
+			--object->members_count;
+
+			return JSIMPLON_SUCCESS;
+		}
+	}
+
+	return JSIMPLON_FAIL;
+}
+
+JSIMPLON_DEF int jsimplon_member_set_key(Jsimplon_Member *member, const char *new_key)
+{
+	if (member == NULL || new_key == NULL)
+		return JSIMPLON_FAIL;
+
+	member->key = malloc(strlen(new_key) + 1);
+	strcpy(member->key, new_key);
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF Jsimplon_Value *jsimplon_member_set_value(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return &member->value;
+}
+
+JSIMPLON_DEF Jsimplon_Value *jsimplon_array_push_value(Jsimplon_Array *array)
+{
+	if (array == NULL)
+		return NULL;
+
+	array->values = realloc(array->values, (array->values_count + 1) * (sizeof *array->values));
+	Jsimplon_Value *value = &array->values[array->values_count++];
+	*value = (Jsimplon_Value) { 0 };
+
+	return value;
+}
+
+JSIMPLON_DEF Jsimplon_Value *jsimplon_array_insert_value_at_index(Jsimplon_Array *array, size_t index)
+{
+	if (array == NULL)
+		return NULL;
+
+	array->values = realloc(array->values, (array->values_count + 1) * (sizeof *array->values)); 
+
+	if (index >= array->values_count)
+		return jsimplon_array_push_value(array);
+
+	memmove(&array->values[index + 1], &array->values[index], (array->values_count - index) * (sizeof *array->values));
+
+	Jsimplon_Value *value = &array->values[array->values_count++];
+	*value = (Jsimplon_Value) { 0 };
+
+	return value;
+}
+
+JSIMPLON_DEF int jsimplon_array_remove_value_at_index(Jsimplon_Array *array, size_t index)
+{
+	if (array == NULL || index >= array->values_count - 1)
+		return JSIMPLON_FAIL;
+
+	if (index < array->values_count - 1)
+		memmove(&array->values[index], &array->values[index + 1], (array->values_count - index - 1) * (sizeof *array->values));
+
+	--array->values_count;
+
+	return JSIMPLON_SUCCESS;
+}
+
+JSIMPLON_DEF Jsimplon_ValueType jsimplon_value_get_type(Jsimplon_Value *value)
 {
 	return value->type;
 }
 
-JSIMPLON_DEF Jsimplon_Object *jsimplon_get_value_object(Jsimplon_Value *value)
+JSIMPLON_DEF Jsimplon_Object *jsimplon_value_get_object(Jsimplon_Value *value)
 {
+	if (value == NULL)
+		return NULL;
+
 	return &value->object_value;
 }
 
-JSIMPLON_DEF Jsimplon_Array *jsimplon_get_value_array(Jsimplon_Value *value)
+JSIMPLON_DEF Jsimplon_Array *jsimplon_value_get_array(Jsimplon_Value *value)
 {
+	if (value == NULL)
+		return NULL;
+
 	return &value->array_value;
 }
 
-JSIMPLON_DEF const char *jsimplon_get_value_str(Jsimplon_Value *value)
+JSIMPLON_DEF const char *jsimplon_value_get_str(Jsimplon_Value *value)
 {
+	if (value == NULL)
+		return NULL;
+
 	return value->string_value;
 }
 
-JSIMPLON_DEF double jsimplon_get_value_number(Jsimplon_Value *value)
+JSIMPLON_DEF double jsimplon_value_get_number(Jsimplon_Value *value)
 {
+	if (value == NULL)
+		return INFINITY;
+
 	return value->number_value;
 }
 
-JSIMPLON_DEF bool jsimplon_get_value_bool(Jsimplon_Value *value)
+JSIMPLON_DEF int jsimplon_value_get_bool(Jsimplon_Value *value)
 {
+	if (value == NULL)
+		return -1;
+
 	return value->bool_value;
 }
 
-JSIMPLON_DEF Jsimplon_Member *jsimplon_get_object_member(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_member_get(Jsimplon_Object *object, const char *key)
 {
+	if (object == NULL || key == NULL)
+		return NULL;
+
 	for (size_t i = 0; i < object->members_count; ++i) {
 		Jsimplon_Member *member = &object->members[i];
 
@@ -284,78 +615,96 @@ JSIMPLON_DEF Jsimplon_Member *jsimplon_get_object_member(Jsimplon_Object *object
 	return NULL;
 }
 
-JSIMPLON_DEF size_t jsimplon_get_object_member_count(Jsimplon_Object *object)
+JSIMPLON_DEF size_t jsimplon_object_member_get_count(Jsimplon_Object *object)
 {
+	if (object == NULL)
+		return 0;
+
 	return object->members_count;
 }
 
-JSIMPLON_DEF Jsimplon_Member *jsimplon_get_object_member_index(Jsimplon_Object *object, size_t index)
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_member_get_at_index(Jsimplon_Object *object, size_t index)
 {
+	if (object == NULL)
+		return NULL;
+
 	if (index >= object->members_count)
 		return NULL;
 
 	return &object->members[index];
 }
 
-JSIMPLON_DEF Jsimplon_ValueType jsimplon_get_object_member_type(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_ValueType jsimplon_object_member_get_type(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_type(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_type(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF Jsimplon_Value *jsimplon_get_object_member_value(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_Value *jsimplon_object_member_get_value(Jsimplon_Object *object, const char *key)
 {
-	return &jsimplon_get_object_member(object, key)->value;
+	return &jsimplon_object_member_get(object, key)->value;
 }
 
-JSIMPLON_DEF Jsimplon_Object *jsimplon_get_object_member_object(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_Object *jsimplon_object_member_get_object(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_object(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_object(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF Jsimplon_Array *jsimplon_get_object_member_array(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_Array *jsimplon_object_member_get_array(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_array(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_array(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF const char *jsimplon_get_object_member_str(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF const char *jsimplon_object_member_get_str(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_str(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_str(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF double jsimplon_get_object_member_number(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF double jsimplon_object_member_get_number(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_number(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_number(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF bool jsimplon_get_object_member_bool(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF int jsimplon_object_member_get_bool(Jsimplon_Object *object, const char *key)
 {
-	return jsimplon_get_value_bool(jsimplon_get_object_member_value(object, key));
+	return jsimplon_value_get_bool(jsimplon_object_member_get_value(object, key));
 }
 
-JSIMPLON_DEF const char *jsimplon_get_member_key(Jsimplon_Member *member)
+JSIMPLON_DEF const char *jsimplon_member_get_key(Jsimplon_Member *member)
 {
+	if (member == NULL)
+		return NULL;
+
 	return member->key;
 }
 
-JSIMPLON_DEF Jsimplon_Value *jsimplon_get_member_value(Jsimplon_Member *member)
+JSIMPLON_DEF Jsimplon_Value *jsimplon_member_get_value(Jsimplon_Member *member)
 {
+	if (member == NULL)
+		return NULL;
+
 	return &member->value;
 }
 
-JSIMPLON_DEF size_t jsimplon_get_array_count(Jsimplon_Array *array)
+JSIMPLON_DEF size_t jsimplon_array_get_count(Jsimplon_Array *array)
 {
+	if (array == NULL)
+		return 0;
+
 	return array->values_count;
 }
 
-JSIMPLON_DEF Jsimplon_Value *jsimplon_get_array_index(Jsimplon_Array *array, size_t index)
+JSIMPLON_DEF Jsimplon_Value *jsimplon_array_get_value_at_index(Jsimplon_Array *array, size_t index)
 {
+	if (array == NULL)
+		return NULL;
+
 	if (index >= array->values_count)
 		return NULL;
 
 	return &array->values[index];
 }
 
-JSIMPLON_DEF Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_size, const char *src)
+JSIMPLON_DEF_INTERNAL Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_size, const char *src)
 {
 	return (Jsimplon_Parser) {
 		.lexer = jsimplon_lexer_create(error, error_size, src),
@@ -363,19 +712,19 @@ JSIMPLON_DEF Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_
 	};
 }
 
-JSIMPLON_DEF void jsimplon_parser_destroy(Jsimplon_Parser *parser)
+JSIMPLON_DEF_INTERNAL void jsimplon_parser_destroy(Jsimplon_Parser *parser)
 {
 	jsimplon_lexer_destroy(&parser->lexer);
 }
 
-JSIMPLON_DEF Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser)
+JSIMPLON_DEF_INTERNAL Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser)
 {
 	Jsimplon_Value value = { 0 };
 
 	if (parser->is_at_beginning) {
 		parser->is_at_beginning = false;
 
-		if (parser->token.type != JSON_TOKEN_LBRACE && parser->token.type != JSON_TOKEN_LBRACKET) {
+		if (parser->token.type != JSIMPLON_TOKEN_LBRACE && parser->token.type != JSIMPLON_TOKEN_LBRACKET) {
 			jsimplon_append_error(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected '{' or '[', got '%s'\n",
@@ -389,35 +738,35 @@ JSIMPLON_DEF Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser)
 	}
 
 	switch (parser->token.type) {
-		case JSON_TOKEN_END:
+		case JSIMPLON_TOKEN_END:
 			break;
-		case JSON_TOKEN_STRING_LITERAL:
-			value.type = JSON_VALUE_STRING;
+		case JSIMPLON_TOKEN_STRING_LITERAL:
+			value.type = JSIMPLON_VALUE_STRING;
 			value.string_value = parser->token.value;
 			break;
-		case JSON_TOKEN_NUMBER_LITERAL:
-			value.type = JSON_VALUE_NUMBER;
+		case JSIMPLON_TOKEN_NUMBER_LITERAL:
+			value.type = JSIMPLON_VALUE_NUMBER;
 			value.number_value = strtod(parser->token.value, NULL);
 			free(parser->token.value);
 			break;
-		case JSON_TOKEN_TRUE:
-			value.type = JSON_VALUE_BOOL;
+		case JSIMPLON_TOKEN_TRUE:
+			value.type = JSIMPLON_VALUE_BOOL;
 			value.bool_value = true;
 			break;
-		case JSON_TOKEN_FALSE:
-			value.type = JSON_VALUE_BOOL;
+		case JSIMPLON_TOKEN_FALSE:
+			value.type = JSIMPLON_VALUE_BOOL;
 			value.bool_value = false;
 			break;
-		case JSON_TOKEN_NULL:
-			value.type = JSON_VALUE_NULL;
+		case JSIMPLON_TOKEN_NULL:
+			value.type = JSIMPLON_VALUE_NULL;
 			value.null_value = NULL;
 			break;
-		case JSON_TOKEN_LBRACE:
-			value.type = JSON_VALUE_OBJECT;
+		case JSIMPLON_TOKEN_LBRACE:
+			value.type = JSIMPLON_VALUE_OBJECT;
 			value.object_value = jsimplon_parser_parse_object(parser);
 			break;
-		case JSON_TOKEN_LBRACKET:
-			value.type = JSON_VALUE_ARRAY;
+		case JSIMPLON_TOKEN_LBRACKET:
+			value.type = JSIMPLON_VALUE_ARRAY;
 			value.array_value = jsimplon_parser_parse_array(parser);
 			break;
 		default:
@@ -434,7 +783,7 @@ JSIMPLON_DEF Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser)
 	return value;
 }
 
-JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parser)
+JSIMPLON_DEF_INTERNAL Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parser)
 {
 	Jsimplon_Object object = { 0 };
 	bool expecting_comma = false;
@@ -442,13 +791,13 @@ JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parse
 	while (true) {
 		parser->token = jsimplon_lexer_next_token(&parser->lexer);
 
-		if (parser->token.type == JSON_TOKEN_RBRACE)
+		if (parser->token.type == JSIMPLON_TOKEN_RBRACE)
 			break;
 
 		if (expecting_comma) {
 			expecting_comma = false;
 
-			if (parser->token.type != JSON_TOKEN_COMMA) {
+			if (parser->token.type != JSIMPLON_TOKEN_COMMA) {
 				jsimplon_append_error(
 					parser->lexer.error, parser->lexer.error_size,
 					"parser error: %u:%u: expected ',', got '%s'\n",
@@ -461,7 +810,7 @@ JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parse
 			continue;
 		}
 
-		if (parser->token.type != JSON_TOKEN_STRING_LITERAL) {
+		if (parser->token.type != JSIMPLON_TOKEN_STRING_LITERAL) {
 			jsimplon_append_error(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected string literal, got '%s'\n",
@@ -482,7 +831,7 @@ JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parse
 	return object;
 }
 
-JSIMPLON_DEF Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parser)
+JSIMPLON_DEF_INTERNAL Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parser)
 {
 	Jsimplon_Member member = { 0 };
 
@@ -490,7 +839,7 @@ JSIMPLON_DEF Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parse
 	
 	parser->token = jsimplon_lexer_next_token(&parser->lexer);
 
-	if (parser->token.type != JSON_TOKEN_COLON) {
+	if (parser->token.type != JSIMPLON_TOKEN_COLON) {
 		jsimplon_append_error(
 			parser->lexer.error, parser->lexer.error_size,
 			"parser error: %u:%u: expected ':', got '%s'\n",
@@ -508,7 +857,7 @@ JSIMPLON_DEF Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parse
 	return member;
 }
 
-JSIMPLON_DEF Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser)
+JSIMPLON_DEF_INTERNAL Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser)
 {
 	Jsimplon_Array array = { 0 };
 	bool expecting_comma = false;
@@ -516,10 +865,10 @@ JSIMPLON_DEF Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser)
 	while (true) {
 		parser->token = jsimplon_lexer_next_token(&parser->lexer);
 
-		if (parser->token.type == JSON_TOKEN_RBRACKET)
+		if (parser->token.type == JSIMPLON_TOKEN_RBRACKET)
 			break;
 
-		if (parser->token.type == JSON_TOKEN_END) {
+		if (parser->token.type == JSIMPLON_TOKEN_END) {
 			jsimplon_append_error(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected JSON value, got '%s'\n",
@@ -534,7 +883,7 @@ JSIMPLON_DEF Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser)
 		if (expecting_comma) {
 			expecting_comma = false;
 
-			if (parser->token.type != JSON_TOKEN_COMMA) {
+			if (parser->token.type != JSIMPLON_TOKEN_COMMA) {
 				jsimplon_append_error(
 					parser->lexer.error, parser->lexer.error_size,
 					"parser error: %u:%u: expected ',', got '%s'\n",
@@ -557,16 +906,16 @@ JSIMPLON_DEF Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser *parser)
 	return array;
 }
 
-JSIMPLON_DEF void jsimplon_value_destroy(Jsimplon_Value *value)
+JSIMPLON_DEF_INTERNAL void jsimplon_value_destroy(Jsimplon_Value *value)
 {
 	switch (value->type) {
-		case JSON_VALUE_STRING:
+		case JSIMPLON_VALUE_STRING:
 			free(value->string_value);
 			break;
-		case JSON_VALUE_OBJECT:
+		case JSIMPLON_VALUE_OBJECT:
 			jsimplon_object_destroy(&value->object_value);
 			break;
-		case JSON_VALUE_ARRAY:
+		case JSIMPLON_VALUE_ARRAY:
 			jsimplon_array_destroy(&value->array_value);
 			break;
 		default:
@@ -576,7 +925,7 @@ JSIMPLON_DEF void jsimplon_value_destroy(Jsimplon_Value *value)
 	memset(value, 0, sizeof *value);
 }
 
-JSIMPLON_DEF void jsimplon_object_destroy(Jsimplon_Object *object)
+JSIMPLON_DEF_INTERNAL void jsimplon_object_destroy(Jsimplon_Object *object)
 {
 	if (object->members == NULL)
 		return;
@@ -587,7 +936,7 @@ JSIMPLON_DEF void jsimplon_object_destroy(Jsimplon_Object *object)
 	memset(object, 0, sizeof *object);
 }
 
-JSIMPLON_DEF void jsimplon_member_destroy(Jsimplon_Member *member)
+JSIMPLON_DEF_INTERNAL void jsimplon_member_destroy(Jsimplon_Member *member)
 {
 	if (member->key == NULL)
 		return;
@@ -597,7 +946,7 @@ JSIMPLON_DEF void jsimplon_member_destroy(Jsimplon_Member *member)
 	memset(member, 0, sizeof *member);
 }
 
-JSIMPLON_DEF void jsimplon_array_destroy(Jsimplon_Array *array)
+JSIMPLON_DEF_INTERNAL void jsimplon_array_destroy(Jsimplon_Array *array)
 {
 	if (array->values == NULL)
 		return;
@@ -608,7 +957,7 @@ JSIMPLON_DEF void jsimplon_array_destroy(Jsimplon_Array *array)
 	memset(array, 0, sizeof *array);
 }
 
-JSIMPLON_DEF Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src)
+JSIMPLON_DEF_INTERNAL Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src)
 {
 	Jsimplon_Lexer lexer = {
 		.src = src,
@@ -622,7 +971,7 @@ JSIMPLON_DEF Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_si
 	return lexer;
 }
 
-JSIMPLON_DEF void jsimplon_lexer_destroy(Jsimplon_Lexer *lexer)
+JSIMPLON_DEF_INTERNAL void jsimplon_lexer_destroy(Jsimplon_Lexer *lexer)
 {
 	free(lexer->lexeme);
 }
@@ -630,7 +979,7 @@ JSIMPLON_DEF void jsimplon_lexer_destroy(Jsimplon_Lexer *lexer)
 /*
  ** TODO: Refactor lexer to remove spaghetti code!!! **
 
-JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l)
+JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l)
 {
 	char c;
 	size_t lexeme_index;
@@ -660,22 +1009,22 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l)
 		case '\0':
 			break;
 		case '{':
-			token.type = JSON_TOKEN_LBRACE;
+			token.type = JSIMPLON_TOKEN_LBRACE;
 			break;
 		case '}':
-			token.type = JSON_TOKEN_RBRACE;
+			token.type = JSIMPLON_TOKEN_RBRACE;
 			break;
 		case '[':
-			token.type = JSON_TOKEN_LBRACKET;
+			token.type = JSIMPLON_TOKEN_LBRACKET;
 			break;
 		case ']':
-			token.type = JSON_TOKEN_RBRACKET;
+			token.type = JSIMPLON_TOKEN_RBRACKET;
 			break;
 		case ':':
-			token.type = JSON_TOKEN_COLON;
+			token.type = JSIMPLON_TOKEN_COLON;
 			break;
 		case ',':
-			token.type = JSON_TOKEN_COMMA;
+			token.type = JSIMPLON_TOKEN_COMMA;
 			break;
 		default:
 			jsimplon_append_error(
@@ -695,7 +1044,7 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l)
 }
 */
 
-JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
+JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 {
 	size_t lexeme_index;
 
@@ -718,7 +1067,7 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 	 	char c = lexer->src[lexer->index];
 
 		if (c == 0) {
-			token.type = JSON_TOKEN_END;
+			token.type = JSIMPLON_TOKEN_END;
 			break;
 		}
 
@@ -735,7 +1084,7 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 				if (!escape_in_effect) {
 					looking_for_string = false;
 
-					token.type = JSON_TOKEN_STRING_LITERAL;
+					token.type = JSIMPLON_TOKEN_STRING_LITERAL;
 					token.value = malloc(strlen(lexer->lexeme) + 1);
 					strcpy(token.value, lexer->lexeme);
 
@@ -884,7 +1233,7 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 
 			looking_for_number = false;
 
-			token.type = JSON_TOKEN_NUMBER_LITERAL;
+			token.type = JSIMPLON_TOKEN_NUMBER_LITERAL;
 			token.value = malloc(strlen(lexer->lexeme) + 1);
 			strcpy(token.value, lexer->lexeme);
 
@@ -917,13 +1266,13 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 		}
 		else if (looking_for_tfl) {
 			if (strcmp(lexer->lexeme, "true") == 0) {
-				token.type = JSON_TOKEN_TRUE;
+				token.type = JSIMPLON_TOKEN_TRUE;
 			}
 			else if (strcmp(lexer->lexeme, "false") == 0) {
-				token.type = JSON_TOKEN_NULL;
+				token.type = JSIMPLON_TOKEN_NULL;
 			}
 			else if (strcmp(lexer->lexeme, "null") == 0) {
-				token.type = JSON_TOKEN_NULL;
+				token.type = JSIMPLON_TOKEN_NULL;
 			}
 			else {
 				jsimplon_append_error(
@@ -934,8 +1283,9 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 					JSIMPLON_NUMBER_LITERAL_MAX_LENGTH
 				);
 				++lexer->error_count;
-
 			}
+
+			--lexer->index;
 
 			break;
 		}
@@ -952,22 +1302,22 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 
 		switch (c) {
 			case '{':
-				token.type = JSON_TOKEN_LBRACE;
+				token.type = JSIMPLON_TOKEN_LBRACE;
 				break;
 			case '}':
-				token.type = JSON_TOKEN_RBRACE;
+				token.type = JSIMPLON_TOKEN_RBRACE;
 				break;
 			case '[':
-				token.type = JSON_TOKEN_LBRACKET;
+				token.type = JSIMPLON_TOKEN_LBRACKET;
 				break;
 			case ']':
-				token.type = JSON_TOKEN_RBRACKET;
+				token.type = JSIMPLON_TOKEN_RBRACKET;
 				break;
 			case ':':
-				token.type = JSON_TOKEN_COLON;
+				token.type = JSIMPLON_TOKEN_COLON;
 				break;
 			case ',':
-				token.type = JSON_TOKEN_COMMA;
+				token.type = JSIMPLON_TOKEN_COMMA;
 				break;
 			default:
 				jsimplon_append_error(
@@ -985,36 +1335,36 @@ JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer)
 	return token;
 }
 
-JSIMPLON_DEF const char *jsimplon_token_to_str(Jsimplon_Token token)
+JSIMPLON_DEF_INTERNAL const char *jsimplon_token_to_str(Jsimplon_Token token)
 {
 	switch (token.type) {
-		case JSON_TOKEN_END:
+		case JSIMPLON_TOKEN_END:
 			return "TOKEN_END";
-		case JSON_TOKEN_STRING_LITERAL:
-		case JSON_TOKEN_NUMBER_LITERAL:
+		case JSIMPLON_TOKEN_STRING_LITERAL:
+		case JSIMPLON_TOKEN_NUMBER_LITERAL:
 			return token.value;
-		case JSON_TOKEN_TRUE:
+		case JSIMPLON_TOKEN_TRUE:
 			return "true";
-		case JSON_TOKEN_FALSE:
+		case JSIMPLON_TOKEN_FALSE:
 			return "false";
-		case JSON_TOKEN_NULL:
+		case JSIMPLON_TOKEN_NULL:
 			return "null";
-		case JSON_TOKEN_LBRACE:
+		case JSIMPLON_TOKEN_LBRACE:
 			return "{";
-		case JSON_TOKEN_RBRACE:
+		case JSIMPLON_TOKEN_RBRACE:
 			return "}";
-		case JSON_TOKEN_LBRACKET:
+		case JSIMPLON_TOKEN_LBRACKET:
 			return "[";
-		case JSON_TOKEN_RBRACKET:
+		case JSIMPLON_TOKEN_RBRACKET:
 			return "]";
-		case JSON_TOKEN_COMMA:
+		case JSIMPLON_TOKEN_COMMA:
 			return ",";
-		case JSON_TOKEN_COLON:
+		case JSIMPLON_TOKEN_COLON:
 			return ":";
 	}
 }
 
-JSIMPLON_DEF void jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...)
+JSIMPLON_DEF_INTERNAL void jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...)
 {
 	if (error == NULL)
 		return;
@@ -1022,7 +1372,7 @@ JSIMPLON_DEF void jsimplon_append_error(char **error, size_t *error_size, const 
 	va_list args;
 
 	va_start(args, fmt);
-	size_t append_len = vsnprintf(NULL, 0, fmt, args);
+	int append_len = vsnprintf(NULL, 0, fmt, args);
 	va_end(args);
 
 	size_t error_prev_len = strlen(*error);
@@ -1038,7 +1388,7 @@ JSIMPLON_DEF void jsimplon_append_error(char **error, size_t *error_size, const 
 	va_end(args);
 }
 
-JSIMPLON_DEF char *jsimplon_file_read(char **error, size_t *error_size, const char *file_name)
+JSIMPLON_DEF_INTERNAL char *jsimplon_file_read(char **error, size_t *error_size, const char *file_name)
 {
 	char *buffer = NULL;
 
@@ -1078,7 +1428,7 @@ jsimplon_file_read_defer:
 	return buffer;
 }
 
-JSIMPLON_DEF int jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src)
+JSIMPLON_DEF_INTERNAL int jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src)
 {
 	int status = 0;
 

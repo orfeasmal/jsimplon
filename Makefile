@@ -29,15 +29,18 @@ OBJ_REL     = $(patsubst $(SRC_DIR)/%.c, $(OBJ_REL_DIR)/%.o, $(SRC))
 EXE_REL = build/release/example
 EXE_DEB = build/debug/example
 
-.PHONY: debug release run clean
+.PHONY: run clean
 
-debug: $(OBJ_DEB)
-	@ echo -e "$(GREEN)LINKING EXECUTABLE$(NC) $(EXE_DEB)"
-	@ $(LD) $(OBJ_DEB) -o $(EXE_DEB) $(LDFLAGS) $(LDFLAGS_DEB)
+debug: $(EXE_DEB)
+release: $(EXE_REL)
 
-release: $(OBJ_REL)
-	@ echo -e "$(GREEN)LINKING EXECUTABLE$(NC) $(EXE_REL)"
-	@ $(LD) $(OBJ_REL) -o $(EXE_REL) $(LDFLAGS)
+$(EXE_DEB): $(OBJ_DEB)
+	@ echo -e "$(GREEN)LINKING EXECUTABLE$(NC) $@"
+	@ $(LD) $(OBJ_DEB) -o $@ $(LDFLAGS) $(LDFLAGS_DEB)
+
+$(EXE_REL): $(OBJ_REL)
+	@ echo -e "$(GREEN)LINKING EXECUTABLE$(NC) $@"
+	@ $(LD) $(OBJ_REL) -o $@ $(LDFLAGS)
 
 $(OBJ_REL_DIR)/%.o: $(SRC_DIR)/%.c
 	@ mkdir -p $(@D)
