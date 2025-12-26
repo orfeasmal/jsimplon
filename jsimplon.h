@@ -34,7 +34,7 @@ typedef enum {
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_root_create(void);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *src);
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *file_name);
-JSIMPLON_DEF char *          jsimplon_tree_to_str(char **error, const Jsimplon_Value *value);
+JSIMPLON_DEF char *          jsimplon_tree_to_str(char **error, const Jsimplon_Value *root_value);
 JSIMPLON_DEF int             jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name);
 JSIMPLON_DEF int             jsimplon_tree_destroy(Jsimplon_Value *root_value);
 
@@ -155,6 +155,14 @@ typedef struct {
 	bool is_at_beginning;
 } Jsimplon_Parser;
 
+typedef struct {
+	char **error;
+	size_t *error_size;
+	char *str;
+	size_t str_size;
+	uint32_t error_count;
+} Jsimplon_Serialiser;
+
 typedef struct jsimplon_object {
 	Jsimplon_Member *members;
 	size_t members_count;
@@ -186,28 +194,30 @@ typedef struct jsimplon_member {
 } Jsimplon_Member;
 
 /* Parser functions */
-JSIMPLON_DEF Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_size, const char *src);
-JSIMPLON_DEF void            jsimplon_parser_destroy(Jsimplon_Parser *parser);
-JSIMPLON_DEF Jsimplon_Value  jsimplon_parser_parse_value(Jsimplon_Parser *parser);
-JSIMPLON_DEF Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parser);
-JSIMPLON_DEF Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parser);
-JSIMPLON_DEF Jsimplon_Array  jsimplon_parser_parse_array(Jsimplon_Parser *parser);
-
-JSIMPLON_DEF void jsimplon_value_destroy(Jsimplon_Value *value);
-JSIMPLON_DEF void jsimplon_object_destroy(Jsimplon_Object *object);
-JSIMPLON_DEF void jsimplon_member_destroy(Jsimplon_Member *member);
-JSIMPLON_DEF void jsimplon_array_destroy(Jsimplon_Array *array);
+JSIMPLON_DEF_INTERNAL Jsimplon_Value  jsimplon_parser_parse_value(Jsimplon_Parser *parser);
+JSIMPLON_DEF_INTERNAL Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Parser *parser);
+JSIMPLON_DEF_INTERNAL Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Parser *parser);
+JSIMPLON_DEF_INTERNAL Jsimplon_Array  jsimplon_parser_parse_array(Jsimplon_Parser *parser);
 
 /* Lexer functions */
-JSIMPLON_DEF Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src);
-JSIMPLON_DEF void           jsimplon_lexer_destroy(Jsimplon_Lexer *lexer);
-JSIMPLON_DEF Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer);
-JSIMPLON_DEF const char *   jsimplon_token_to_str(Jsimplon_Token token);
+JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *lexer);
+JSIMPLON_DEF_INTERNAL const char *   jsimplon_token_to_str(Jsimplon_Token token);
+
+/* Serialisation functions */
+JSIMPLON_DEF_INTERNAL void jsimplon_value_to_str(Jsimplon_Serialiser *serialiser, const Jsimplon_Value *value);
+JSIMPLON_DEF_INTERNAL void jsimplon_object_to_str(Jsimplon_Serialiser *serialiser, const Jsimplon_Object *object);
+JSIMPLON_DEF_INTERNAL void jsimplon_array_to_str(Jsimplon_Serialiser *serialiser, const Jsimplon_Array *array);
+
+/* Cleaning */
+JSIMPLON_DEF_INTERNAL void jsimplon_value_destroy(Jsimplon_Value *value);
+JSIMPLON_DEF_INTERNAL void jsimplon_object_destroy(Jsimplon_Object *object);
+JSIMPLON_DEF_INTERNAL void jsimplon_member_destroy(Jsimplon_Member *member);
+JSIMPLON_DEF_INTERNAL void jsimplon_array_destroy(Jsimplon_Array *array);
 
 /* Utility functions */
-JSIMPLON_DEF void  jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...);
-JSIMPLON_DEF char *jsimplon_file_read(char **error, size_t *error_size, const char *file_name); // Returns NULL if failed
-JSIMPLON_DEF int   jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src); // Returns 0 if success anything else if failed
+JSIMPLON_DEF_INTERNAL void  jsimplon_append_str(char **str, size_t *str_size, const char *fmt, ...);
+JSIMPLON_DEF_INTERNAL char *jsimplon_file_read(char **error, size_t *error_size, const char *file_name); // Returns NULL if failed
+JSIMPLON_DEF_INTERNAL int   jsimplon_file_write(char **error, size_t *error_size, const char *file_name, const char *src); // Returns 0 if success anything else if failed
 
 JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *src)
 {
@@ -221,7 +231,16 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *sr
 
 	bool success = true;
 
-	Jsimplon_Parser parser = jsimplon_parser_create(error, &error_size, src);
+	Jsimplon_Parser parser = {
+		.lexer = {
+			.src        = src,
+			.error      = error,
+			.error_size = &error_size,
+			.lexeme     = malloc(JSIMPLON_STRING_LITERAL_MAX_LENGTH + 1),
+			.line       = 1
+		},
+		.is_at_beginning = true
+	};
 
 	parser.token = jsimplon_lexer_next_token(&parser.lexer);
 	*tree = jsimplon_parser_parse_value(&parser);
@@ -229,7 +248,7 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *sr
 	if (parser.lexer.error_count > 0) {
 		success = false;
 
-		jsimplon_append_error(
+		jsimplon_append_str(
 			error, &error_size,
 			"lexer generated %u error(s)\n",
 			parser.lexer.error_count
@@ -239,14 +258,14 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_str(char **error, const char *sr
 	if (parser.error_count > 0) {
 		success = false;
 
-		jsimplon_append_error(
+		jsimplon_append_str(
 			error, &error_size,
 			"parser generated %u error(s)\n",
 			parser.error_count
 		);
 	}
 
-	jsimplon_parser_destroy(&parser);
+	free(parser.lexer.lexeme);
 
 	if (!success) {
 		jsimplon_tree_destroy(tree);
@@ -264,7 +283,7 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *f
 	size_t error_size;
 	if (error != NULL) {
 		error_size = 128;
-		*error = calloc(error_size , sizeof *(*error));
+		*error = calloc(error_size, sizeof *(*error));
 	}
 
 	char *src = jsimplon_file_read(error, &error_size, file_name);
@@ -281,17 +300,48 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_tree_from_file(char **error, const char *f
 	return tree;
 }
 
-JSIMPLON_DEF char *jsimplon_tree_to_str(char **error, const Jsimplon_Value *value)
+JSIMPLON_DEF char *jsimplon_tree_to_str(char **error, const Jsimplon_Value *root_value)
 {
-	// TODO: implement
+	size_t error_size;
+	if (error != NULL) {
+		error_size = 128;
+		*error = calloc(error_size, sizeof *(*error));
+	}
 
-	return NULL;
+	bool success = true;
+
+	Jsimplon_Serialiser serialiser = {
+		.error = error,
+		.error_size = &error_size,
+		.str_size = 128
+	};
+	serialiser.str = calloc(serialiser.str_size, sizeof *serialiser.str);
+
+	jsimplon_value_to_str(&serialiser, root_value);
+
+	if (serialiser.error_count > 0) {
+		success = false;
+
+		jsimplon_append_str(
+			error, &error_size,
+			"serialiser generated %u error(s)\n",
+			serialiser.error_count
+		);
+	}
+
+	if (!success) {
+		free(serialiser.str);
+		return NULL;
+	}
+
+	free(*error);
+	*error = NULL;
+
+	return serialiser.str;
 }
 
 JSIMPLON_DEF int jsimplon_tree_to_file(char **error, const Jsimplon_Value *value, const char *file_name)
 {
-	// TODO: implement
-
 	return -1;
 }
 
@@ -704,19 +754,6 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_array_get_value_at_index(Jsimplon_Array *a
 	return &array->values[index];
 }
 
-JSIMPLON_DEF_INTERNAL Jsimplon_Parser jsimplon_parser_create(char **error, size_t *error_size, const char *src)
-{
-	return (Jsimplon_Parser) {
-		.lexer = jsimplon_lexer_create(error, error_size, src),
-		.is_at_beginning = true
-	};
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_parser_destroy(Jsimplon_Parser *parser)
-{
-	jsimplon_lexer_destroy(&parser->lexer);
-}
-
 JSIMPLON_DEF_INTERNAL Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser *parser)
 {
 	Jsimplon_Value value = { 0 };
@@ -725,7 +762,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser
 		parser->is_at_beginning = false;
 
 		if (parser->token.type != JSIMPLON_TOKEN_LBRACE && parser->token.type != JSIMPLON_TOKEN_LBRACKET) {
-			jsimplon_append_error(
+			jsimplon_append_str(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected '{' or '[', got '%s'\n",
 				parser->token.line, parser->token.column,
@@ -770,7 +807,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Value jsimplon_parser_parse_value(Jsimplon_Parser
 			value.array_value = jsimplon_parser_parse_array(parser);
 			break;
 		default:
-			jsimplon_append_error(
+			jsimplon_append_str(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: unexpected token: '%s'\n",
 				parser->token.line, parser->token.column,
@@ -798,7 +835,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Pars
 			expecting_comma = false;
 
 			if (parser->token.type != JSIMPLON_TOKEN_COMMA) {
-				jsimplon_append_error(
+				jsimplon_append_str(
 					parser->lexer.error, parser->lexer.error_size,
 					"parser error: %u:%u: expected ',', got '%s'\n",
 					parser->token.line, parser->token.column,
@@ -811,7 +848,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Object jsimplon_parser_parse_object(Jsimplon_Pars
 		}
 
 		if (parser->token.type != JSIMPLON_TOKEN_STRING_LITERAL) {
-			jsimplon_append_error(
+			jsimplon_append_str(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected string literal, got '%s'\n",
 				parser->token.line, parser->token.column,
@@ -840,7 +877,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Member jsimplon_parser_parse_member(Jsimplon_Pars
 	parser->token = jsimplon_lexer_next_token(&parser->lexer);
 
 	if (parser->token.type != JSIMPLON_TOKEN_COLON) {
-		jsimplon_append_error(
+		jsimplon_append_str(
 			parser->lexer.error, parser->lexer.error_size,
 			"parser error: %u:%u: expected ':', got '%s'\n",
 			parser->token.line, parser->token.column,
@@ -869,7 +906,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser
 			break;
 
 		if (parser->token.type == JSIMPLON_TOKEN_END) {
-			jsimplon_append_error(
+			jsimplon_append_str(
 				parser->lexer.error, parser->lexer.error_size,
 				"parser error: %u:%u: expected JSON value, got '%s'\n",
 				parser->token.line, parser->token.column,
@@ -884,7 +921,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser
 			expecting_comma = false;
 
 			if (parser->token.type != JSIMPLON_TOKEN_COMMA) {
-				jsimplon_append_error(
+				jsimplon_append_str(
 					parser->lexer.error, parser->lexer.error_size,
 					"parser error: %u:%u: expected ',', got '%s'\n",
 					parser->token.line, parser->token.column,
@@ -904,76 +941,6 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Array jsimplon_parser_parse_array(Jsimplon_Parser
 	}
 
 	return array;
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_value_destroy(Jsimplon_Value *value)
-{
-	switch (value->type) {
-		case JSIMPLON_VALUE_STRING:
-			free(value->string_value);
-			break;
-		case JSIMPLON_VALUE_OBJECT:
-			jsimplon_object_destroy(&value->object_value);
-			break;
-		case JSIMPLON_VALUE_ARRAY:
-			jsimplon_array_destroy(&value->array_value);
-			break;
-		default:
-			break;
-	}
-
-	memset(value, 0, sizeof *value);
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_object_destroy(Jsimplon_Object *object)
-{
-	if (object->members == NULL)
-		return;
-
-	for (uint32_t i = 0; i < object->members_count; ++i)
-		jsimplon_member_destroy(&object->members[i]);
-	free(object->members);
-	memset(object, 0, sizeof *object);
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_member_destroy(Jsimplon_Member *member)
-{
-	if (member->key == NULL)
-		return;
-
-	free(member->key);
-	jsimplon_value_destroy(&member->value);
-	memset(member, 0, sizeof *member);
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_array_destroy(Jsimplon_Array *array)
-{
-	if (array->values == NULL)
-		return;
-
-	for (uint32_t i = 0; i < array->values_count; ++i)
-		jsimplon_value_destroy(&array->values[i]);
-	free(array->values);
-	memset(array, 0, sizeof *array);
-}
-
-JSIMPLON_DEF_INTERNAL Jsimplon_Lexer jsimplon_lexer_create(char **error, size_t *error_size, const char *src)
-{
-	Jsimplon_Lexer lexer = {
-		.src = src,
-		.error = error,
-		.error_size = error_size,
-		.line = 1,
-	};
-
-	lexer.lexeme = malloc(JSIMPLON_STRING_LITERAL_MAX_LENGTH + 1);
-
-	return lexer;
-}
-
-JSIMPLON_DEF_INTERNAL void jsimplon_lexer_destroy(Jsimplon_Lexer *lexer)
-{
-	free(lexer->lexeme);
 }
 
 /*
@@ -1027,7 +994,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 			token.type = JSIMPLON_TOKEN_COMMA;
 			break;
 		default:
-			jsimplon_append_error(
+			jsimplon_append_str(
 				l->error, l->error_size,
 				"lexer error: %u:%u: stray '%c'\n",
 				token.line, token.column,
@@ -1092,7 +1059,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 				}
 			}
 			else if (c == '\n') {
-				jsimplon_append_error(
+				jsimplon_append_str(
 					lexer->error, lexer->error_size,
 					"lexer error: %u:%u: newline character inserted in the middle of string literal %s\n",
 					token.line, token.column,
@@ -1104,7 +1071,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 			}
 
 			if (lexeme_index == JSIMPLON_STRING_LITERAL_MAX_LENGTH) {
-				jsimplon_append_error(
+				jsimplon_append_str(
 					lexer->error, lexer->error_size,
 					"lexer error: %u:%u: string literal \"%s...\" exceeded maximum length of %d\n",
 					token.line, token.column,
@@ -1132,7 +1099,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 		if (isdigit(c)) {
 			if (looking_for_number) {
 				if (lexeme_index == JSIMPLON_NUMBER_LITERAL_MAX_LENGTH) {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: number literal '%s...' exceeded maximum length of %d\n",
 						token.line, token.column,
@@ -1158,7 +1125,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 		else if (looking_for_number) {
 			if (c == '.') {
 				if (dot_in_effect) {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: number literal '%s.' has more than one decimal place\n",
 						token.line, token.column,
@@ -1169,7 +1136,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 				}
 
 				if (exponent_in_effect) {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: floating point exponent in number literal '%s.'\n",
 						token.line, token.column,
@@ -1186,7 +1153,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 			}
 			else if (c == 'e') {
 				if (exponent_in_effect) {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: number literal '%se' has more than one exponent marker\n",
 						token.line, token.column,
@@ -1197,7 +1164,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 				}
 
 				if (lexer->lexeme[lexeme_index - 1] == '.') {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: number literal '%se' has exponent marker right after '.'\n",
 						token.line, token.column,
@@ -1215,7 +1182,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 
 			if (exponent_in_effect && c == '-') {
 				if (exponent_neg_in_effect) {
-					jsimplon_append_error(
+					jsimplon_append_str(
 						lexer->error, lexer->error_size,
 						"lexer error: %u:%u: number literal '%s-' has more than one negation sign in the exponent\n",
 						token.line, token.column,
@@ -1275,7 +1242,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 				token.type = JSIMPLON_TOKEN_NULL;
 			}
 			else {
-				jsimplon_append_error(
+				jsimplon_append_str(
 					lexer->error, lexer->error_size,
 					"lexer error: %u:%u: unknown character sequence '%s'\n",
 					token.line, token.column,
@@ -1320,7 +1287,7 @@ JSIMPLON_DEF_INTERNAL Jsimplon_Token jsimplon_lexer_next_token(Jsimplon_Lexer *l
 				token.type = JSIMPLON_TOKEN_COMMA;
 				break;
 			default:
-				jsimplon_append_error(
+				jsimplon_append_str(
 					lexer->error, lexer->error_size,
 					"lexer error: %u:%u: stray '%c'\n",
 					token.line, token.column,
@@ -1364,9 +1331,146 @@ JSIMPLON_DEF_INTERNAL const char *jsimplon_token_to_str(Jsimplon_Token token)
 	}
 }
 
-JSIMPLON_DEF_INTERNAL void jsimplon_append_error(char **error, size_t *error_size, const char *fmt, ...)
+JSIMPLON_DEF_INTERNAL void jsimplon_value_to_str(Jsimplon_Serialiser *s, const Jsimplon_Value *value)
 {
-	if (error == NULL)
+	if (value == NULL) {
+		jsimplon_append_str(
+			s->error, s->error_size,
+			"serialisation error: null value\n" // TODO: Make this more helpful?
+		);
+		++s->error_count;
+
+		return;
+	}
+
+	switch (value->type) {
+		case JSIMPLON_VALUE_UNINITIALISED:
+			jsimplon_append_str(
+				s->error, s->error_size,
+				"serialisation error: uninitialised value\n"
+			);
+			++s->error_count;
+
+			break;
+		case JSIMPLON_VALUE_OBJECT:
+			jsimplon_object_to_str(s, &value->object_value);
+			break;
+		case JSIMPLON_VALUE_ARRAY:
+			jsimplon_array_to_str(s, &value->array_value);
+			break;
+		case JSIMPLON_VALUE_STRING:
+			jsimplon_append_str(
+				&s->str, &s->str_size,
+				"\"%s\"", value->string_value
+			);
+			break;
+		case JSIMPLON_VALUE_NUMBER:
+			jsimplon_append_str(
+				&s->str, &s->str_size,
+				"%lf", value->number_value
+			);
+			break;
+		case JSIMPLON_VALUE_BOOL:
+			if (value->bool_value == true)
+				jsimplon_append_str(&s->str, &s->str_size, "true");
+			else
+				jsimplon_append_str(&s->str, &s->str_size, "false");
+			break;
+		case JSIMPLON_VALUE_NULL:
+			jsimplon_append_str(&s->str, &s->str_size, "null");
+			break;
+	}
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_object_to_str(Jsimplon_Serialiser *s, const Jsimplon_Object *object)
+{
+	jsimplon_append_str(&s->str, &s->str_size, "{");
+
+	for (uint32_t i = 0; i < object->members_count; ++i) {
+		if (i > 0)
+			jsimplon_append_str(&s->str, &s->str_size, ",");
+
+		const Jsimplon_Member *member = &object->members[i];
+
+		jsimplon_append_str(
+			&s->str, &s->str_size,
+			"\"%s\"", member->key
+		);
+		jsimplon_append_str(&s->str, &s->str_size, ":");
+		jsimplon_value_to_str(s, &member->value);
+	}
+
+	jsimplon_append_str(&s->str, &s->str_size, "}");
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_array_to_str(Jsimplon_Serialiser *s, const Jsimplon_Array *array)
+{
+	jsimplon_append_str(&s->str, &s->str_size, "[");
+
+	for (uint32_t i = 0; i < array->values_count; ++i) {
+		if (i > 0)
+			jsimplon_append_str(&s->str, &s->str_size, ",");
+
+		jsimplon_value_to_str(s, &array->values[i]);
+	}
+
+	jsimplon_append_str(&s->str, &s->str_size, "]");
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_value_destroy(Jsimplon_Value *value)
+{
+	switch (value->type) {
+		case JSIMPLON_VALUE_STRING:
+			free(value->string_value);
+			break;
+		case JSIMPLON_VALUE_OBJECT:
+			jsimplon_object_destroy(&value->object_value);
+			break;
+		case JSIMPLON_VALUE_ARRAY:
+			jsimplon_array_destroy(&value->array_value);
+			break;
+		default:
+			break;
+	}
+
+	memset(value, 0, sizeof *value);
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_object_destroy(Jsimplon_Object *object)
+{
+	if (object->members == NULL)
+		return;
+
+	for (uint32_t i = 0; i < object->members_count; ++i)
+		jsimplon_member_destroy(&object->members[i]);
+	free(object->members);
+	memset(object, 0, sizeof *object);
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_member_destroy(Jsimplon_Member *member)
+{
+	if (member->key == NULL)
+		return;
+
+	free(member->key);
+	jsimplon_value_destroy(&member->value);
+	memset(member, 0, sizeof *member);
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_array_destroy(Jsimplon_Array *array)
+{
+	if (array->values == NULL)
+		return;
+
+	for (uint32_t i = 0; i < array->values_count; ++i)
+		jsimplon_value_destroy(&array->values[i]);
+	free(array->values);
+	memset(array, 0, sizeof *array);
+}
+
+JSIMPLON_DEF_INTERNAL void jsimplon_append_str(char **str, size_t *str_size, const char *fmt, ...)
+{
+	if (str == NULL)
 		return;
 
 	va_list args;
@@ -1375,16 +1479,16 @@ JSIMPLON_DEF_INTERNAL void jsimplon_append_error(char **error, size_t *error_siz
 	int append_len = vsnprintf(NULL, 0, fmt, args);
 	va_end(args);
 
-	size_t error_prev_len = strlen(*error);
-	if (error_prev_len + append_len >= *error_size) {
-		*error_size *= 2;
-		*error_size += append_len;
+	size_t str_prev_len = strlen(*str);
+	if (str_prev_len + append_len >= *str_size) {
+		*str_size *= 2;
+		*str_size += append_len;
 
-		*error = realloc(*error, *error_size * (sizeof *(*error) ));
+		*str = realloc(*str, *str_size * (sizeof *(*str) ));
 	}
 
 	va_start(args, fmt);
-	vsprintf(&(*error)[error_prev_len], fmt, args);
+	vsprintf(&(*str)[str_prev_len], fmt, args);
 	va_end(args);
 }
 
@@ -1418,7 +1522,7 @@ jsimplon_file_read_defer:
 		fclose(file);
 
 	if (buffer == NULL) {
-		jsimplon_append_error(
+		jsimplon_append_str(
 			error, error_size,
 			"file read error: %s",
 			strerror(errno)
@@ -1448,7 +1552,7 @@ jsimplon_file_write_defer:
 		fclose(file);
 
 	if (status != 0) {
-		jsimplon_append_error(
+		jsimplon_append_str(
 			error, error_size,
 			"file write error: %s",
 			strerror(errno)
