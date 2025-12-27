@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2025 Orfeas Malliamanis
+	Copyright (C) 2025 Orfeas Malliamanis <orfeas@orfeasmal.com>
 
 	This program is free software: you can redistribute it and/or modify it under
 	the terms of the GNU General Public License as published by the Free Software
@@ -81,8 +81,20 @@ JSIMPLON_DEF int              jsimplon_object_remove_member(Jsimplon_Object *obj
 
 JSIMPLON_DEF int              jsimplon_member_set_key(Jsimplon_Member *member, const char *new_key);
 JSIMPLON_DEF Jsimplon_Value * jsimplon_member_set_value(Jsimplon_Member *member); // Kind of useless
+JSIMPLON_DEF int              jsimplon_member_set_str(Jsimplon_Member *member, const char *str);
+JSIMPLON_DEF int              jsimplon_member_set_number(Jsimplon_Member *member, double number);
+JSIMPLON_DEF int              jsimplon_member_set_bool(Jsimplon_Member *member, bool bool_value);
+JSIMPLON_DEF int              jsimplon_member_set_null(Jsimplon_Member *member);
+JSIMPLON_DEF Jsimplon_Object *jsimplon_member_set_object(Jsimplon_Member *member);
+JSIMPLON_DEF Jsimplon_Array * jsimplon_member_set_array(Jsimplon_Member *member);
 
 JSIMPLON_DEF Jsimplon_Value * jsimplon_array_push_value(Jsimplon_Array *array);
+JSIMPLON_DEF int              jsimplon_array_push_str(Jsimplon_Array *array, const char *str);
+JSIMPLON_DEF int              jsimplon_array_push_number(Jsimplon_Array *array, double number);
+JSIMPLON_DEF int              jsimplon_array_push_bool(Jsimplon_Array *array, bool bool_value);
+JSIMPLON_DEF int              jsimplon_array_push_null(Jsimplon_Array *array);
+JSIMPLON_DEF Jsimplon_Object *jsimplon_array_push_object(Jsimplon_Array *array);
+JSIMPLON_DEF Jsimplon_Array * jsimplon_array_push_array(Jsimplon_Array *array);
 JSIMPLON_DEF Jsimplon_Value * jsimplon_array_insert_value_at_index(Jsimplon_Array *array, size_t index);
 JSIMPLON_DEF int              jsimplon_array_remove_value_at_index(Jsimplon_Array *array, size_t index);
 
@@ -95,22 +107,27 @@ JSIMPLON_DEF Jsimplon_ValueType jsimplon_value_get_type(Jsimplon_Value *value);
 JSIMPLON_DEF Jsimplon_Object *  jsimplon_value_get_object(Jsimplon_Value *value);
 JSIMPLON_DEF Jsimplon_Array *   jsimplon_value_get_array(Jsimplon_Value *value);
 JSIMPLON_DEF const char *       jsimplon_value_get_str(Jsimplon_Value *value);
-JSIMPLON_DEF double             jsimplon_value_get_number(Jsimplon_Value *value); // returns nan if failed
+JSIMPLON_DEF double             jsimplon_value_get_number(Jsimplon_Value *value); // returns infinity if failed
 JSIMPLON_DEF int                jsimplon_value_get_bool(Jsimplon_Value *value); // returns -1 if failed
 
-JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_member_get(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_get_member(Jsimplon_Object *object, const char *key);
 JSIMPLON_DEF size_t             jsimplon_object_member_get_count(Jsimplon_Object *object);
 JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_member_get_at_index(Jsimplon_Object *object, size_t index);
 JSIMPLON_DEF Jsimplon_ValueType jsimplon_object_member_get_type(Jsimplon_Object *object, const char *key);
 JSIMPLON_DEF Jsimplon_Value *   jsimplon_object_member_get_value(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF const char *       jsimplon_object_member_get_str(Jsimplon_Object *object, const char *key);
+JSIMPLON_DEF double             jsimplon_object_member_get_number(Jsimplon_Object *object, const char *key); // returns infinity if failed
+JSIMPLON_DEF int                jsimplon_object_member_get_bool(Jsimplon_Object *object, const char *key); // returns -1 if failed
 JSIMPLON_DEF Jsimplon_Object *  jsimplon_object_member_get_object(Jsimplon_Object *object, const char *key);
 JSIMPLON_DEF Jsimplon_Array *   jsimplon_object_member_get_array(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF const char *       jsimplon_object_member_get_str(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF double             jsimplon_object_member_get_number(Jsimplon_Object *object, const char *key); // returns nan if failed
-JSIMPLON_DEF int                jsimplon_object_member_get_bool(Jsimplon_Object *object, const char *key); // returns -1 if failed
 
 JSIMPLON_DEF const char *       jsimplon_member_get_key(Jsimplon_Member *member);
 JSIMPLON_DEF Jsimplon_Value *   jsimplon_member_get_value(Jsimplon_Member *member);
+JSIMPLON_DEF const char *       jsimplon_member_get_str(Jsimplon_Member *member);
+JSIMPLON_DEF double             jsimplon_member_get_number(Jsimplon_Member *member); // returns infinity if failed
+JSIMPLON_DEF int                jsimplon_member_get_bool(Jsimplon_Member *member); // returns -1 if failed
+JSIMPLON_DEF Jsimplon_Object *  jsimplon_member_get_object(Jsimplon_Member *member);
+JSIMPLON_DEF Jsimplon_Array *   jsimplon_member_get_array(Jsimplon_Member *member);
 
 JSIMPLON_DEF size_t             jsimplon_array_get_count(Jsimplon_Array *array);
 JSIMPLON_DEF Jsimplon_Value *   jsimplon_array_get_value_at_index(Jsimplon_Array *array, size_t index);
@@ -496,10 +513,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_str(Jsimplon_Object *object, const c
 	if (object == NULL || key == NULL || str == NULL)
 		return JSIMPLON_FAILURE;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	jsimplon_value_set_str(value, str);
-
-	return JSIMPLON_SUCCESS;
+	return jsimplon_value_set_str(jsimplon_object_add_member_value(object, key), str);
 }
 
 JSIMPLON_DEF int jsimplon_object_add_member_number(Jsimplon_Object *object, const char *key, double number)
@@ -507,10 +521,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_number(Jsimplon_Object *object, cons
 	if (object == NULL || key == NULL)
 		return JSIMPLON_FAILURE;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	jsimplon_value_set_number(value, number);
-
-	return JSIMPLON_SUCCESS;
+	return jsimplon_value_set_number(jsimplon_object_add_member_value(object, key), number);
 }
 
 JSIMPLON_DEF int jsimplon_object_add_member_bool(Jsimplon_Object *object, const char *key, bool bool_value)
@@ -518,10 +529,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_bool(Jsimplon_Object *object, const 
 	if (object == NULL || key == NULL)
 		return JSIMPLON_FAILURE;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	jsimplon_value_set_bool(value, bool_value);
-
-	return JSIMPLON_SUCCESS;
+	return jsimplon_value_set_bool(jsimplon_object_add_member_value(object, key), bool_value);
 }
 
 JSIMPLON_DEF int jsimplon_object_add_member_null(Jsimplon_Object *object, const char *key)
@@ -529,10 +537,7 @@ JSIMPLON_DEF int jsimplon_object_add_member_null(Jsimplon_Object *object, const 
 	if (object == NULL || key == NULL)
 		return JSIMPLON_FAILURE;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	jsimplon_value_set_null(value);
-
-	return JSIMPLON_SUCCESS;
+	return jsimplon_value_set_null(jsimplon_object_add_member_value(object, key));
 }
 
 JSIMPLON_DEF Jsimplon_Object *jsimplon_object_add_member_object(Jsimplon_Object *object, const char *key)
@@ -540,8 +545,7 @@ JSIMPLON_DEF Jsimplon_Object *jsimplon_object_add_member_object(Jsimplon_Object 
 	if (object == NULL || key == NULL)
 		return NULL;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	return jsimplon_value_set_object(value);
+	return jsimplon_value_set_object(jsimplon_object_add_member_value(object, key));
 }
 
 JSIMPLON_DEF Jsimplon_Array *jsimplon_object_add_member_array(Jsimplon_Object *object, const char *key)
@@ -549,8 +553,7 @@ JSIMPLON_DEF Jsimplon_Array *jsimplon_object_add_member_array(Jsimplon_Object *o
 	if (object == NULL || key == NULL)
 		return NULL;
 
-	Jsimplon_Value *value = jsimplon_object_add_member_value(object, key);
-	return jsimplon_value_set_array(value);
+	return jsimplon_value_set_array(jsimplon_object_add_member_value(object, key));
 }
 
 JSIMPLON_DEF int jsimplon_object_remove_member(Jsimplon_Object *object, const char *key)
@@ -596,6 +599,54 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_member_set_value(Jsimplon_Member *member)
 	return &member->value;
 }
 
+JSIMPLON_DEF int jsimplon_member_set_str(Jsimplon_Member *member, const char *str)
+{
+	if (member == NULL)
+		return JSIMPLON_FAILURE;
+
+	return jsimplon_value_set_str(&member->value, str);
+}
+
+JSIMPLON_DEF int jsimplon_member_set_number(Jsimplon_Member *member, double number)
+{
+	if (member == NULL)
+		return JSIMPLON_FAILURE;
+
+	return jsimplon_value_set_number(&member->value, number);
+}
+
+JSIMPLON_DEF int jsimplon_member_set_bool(Jsimplon_Member *member, bool bool_value)
+{
+	if (member == NULL)
+		return JSIMPLON_FAILURE;
+
+	return jsimplon_value_set_bool(&member->value, bool_value);
+}
+
+JSIMPLON_DEF int jsimplon_member_set_null(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return JSIMPLON_FAILURE;
+
+	return jsimplon_value_set_null(&member->value);
+}
+
+JSIMPLON_DEF Jsimplon_Object *jsimplon_member_set_object(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return jsimplon_value_set_object(&member->value);
+}
+
+JSIMPLON_DEF Jsimplon_Array *jsimplon_member_set_array(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return jsimplon_value_set_array(&member->value);
+}
+
 JSIMPLON_DEF Jsimplon_Value *jsimplon_array_push_value(Jsimplon_Array *array)
 {
 	if (array == NULL)
@@ -606,6 +657,36 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_array_push_value(Jsimplon_Array *array)
 	*value = (Jsimplon_Value) { 0 };
 
 	return value;
+}
+
+JSIMPLON_DEF int jsimplon_array_push_str(Jsimplon_Array *array, const char *str)
+{
+	return jsimplon_value_set_str(jsimplon_array_push_value(array), str);
+}
+
+JSIMPLON_DEF int jsimplon_array_push_number(Jsimplon_Array *array, double number)
+{
+	return jsimplon_value_set_number(jsimplon_array_push_value(array), number);
+}
+
+JSIMPLON_DEF int jsimplon_array_push_bool(Jsimplon_Array *array, bool bool_value)
+{
+	return jsimplon_value_set_bool(jsimplon_array_push_value(array), bool_value);
+}
+
+JSIMPLON_DEF int jsimplon_array_push_null(Jsimplon_Array *array)
+{
+	return jsimplon_value_set_null(jsimplon_array_push_value(array));
+}
+
+JSIMPLON_DEF Jsimplon_Object *jsimplon_array_push_object(Jsimplon_Array *array)
+{
+	return jsimplon_value_set_object(jsimplon_array_push_value(array));
+}
+
+JSIMPLON_DEF Jsimplon_Array *jsimplon_array_push_array(Jsimplon_Array *array)
+{
+	return jsimplon_value_set_array(jsimplon_array_push_value(array));
 }
 
 JSIMPLON_DEF Jsimplon_Value *jsimplon_array_insert_value_at_index(Jsimplon_Array *array, size_t index)
@@ -684,7 +765,7 @@ JSIMPLON_DEF int jsimplon_value_get_bool(Jsimplon_Value *value)
 	return value->bool_value;
 }
 
-JSIMPLON_DEF Jsimplon_Member *jsimplon_object_member_get(Jsimplon_Object *object, const char *key)
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_get_member(Jsimplon_Object *object, const char *key)
 {
 	if (object == NULL || key == NULL)
 		return NULL;
@@ -725,7 +806,7 @@ JSIMPLON_DEF Jsimplon_ValueType jsimplon_object_member_get_type(Jsimplon_Object 
 
 JSIMPLON_DEF Jsimplon_Value *jsimplon_object_member_get_value(Jsimplon_Object *object, const char *key)
 {
-	return &jsimplon_object_member_get(object, key)->value;
+	return &jsimplon_object_get_member(object, key)->value;
 }
 
 JSIMPLON_DEF Jsimplon_Object *jsimplon_object_member_get_object(Jsimplon_Object *object, const char *key)
@@ -767,6 +848,46 @@ JSIMPLON_DEF Jsimplon_Value *jsimplon_member_get_value(Jsimplon_Member *member)
 		return NULL;
 
 	return &member->value;
+}
+
+JSIMPLON_DEF const char *jsimplon_member_get_str(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return jsimplon_value_get_str(&member->value);
+}
+
+JSIMPLON_DEF double jsimplon_member_get_number(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return INFINITY;
+
+	return jsimplon_value_get_number(&member->value);
+}
+
+JSIMPLON_DEF int jsimplon_member_get_bool(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return -1;
+
+	return jsimplon_value_get_bool(&member->value);
+}
+
+JSIMPLON_DEF Jsimplon_Object *jsimplon_member_get_object(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return jsimplon_value_get_object(&member->value);
+}
+
+JSIMPLON_DEF Jsimplon_Array *jsimplon_member_get_array(Jsimplon_Member *member)
+{
+	if (member == NULL)
+		return NULL;
+
+	return jsimplon_value_get_array(&member->value);
 }
 
 JSIMPLON_DEF size_t jsimplon_array_get_count(Jsimplon_Array *array)

@@ -7,7 +7,7 @@ YELLOW = \033[1;33m
 CC = clang
 LD = clang
 
-CFLAGS =  -std=c11 -Wall -Wextra -I.
+CFLAGS =  -std=c11 -Wall -Wextra -Wpedantic -I.
 CFLAGS += 
 
 CFLAGS_DEB = -O0 -g -gdwarf-4 -fsanitize=address
