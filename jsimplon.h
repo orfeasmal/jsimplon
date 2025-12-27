@@ -111,8 +111,8 @@ JSIMPLON_DEF double             jsimplon_value_get_number(Jsimplon_Value *value)
 JSIMPLON_DEF int                jsimplon_value_get_bool(Jsimplon_Value *value); // returns -1 if failed
 
 JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_get_member(Jsimplon_Object *object, const char *key);
-JSIMPLON_DEF size_t             jsimplon_object_member_get_count(Jsimplon_Object *object);
-JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_member_get_at_index(Jsimplon_Object *object, size_t index);
+JSIMPLON_DEF size_t             jsimplon_object_get_member_count(Jsimplon_Object *object);
+JSIMPLON_DEF Jsimplon_Member *  jsimplon_object_get_member_at_index(Jsimplon_Object *object, size_t index);
 JSIMPLON_DEF Jsimplon_ValueType jsimplon_object_member_get_type(Jsimplon_Object *object, const char *key);
 JSIMPLON_DEF Jsimplon_Value *   jsimplon_object_member_get_value(Jsimplon_Object *object, const char *key);
 JSIMPLON_DEF const char *       jsimplon_object_member_get_str(Jsimplon_Object *object, const char *key);
@@ -780,7 +780,7 @@ JSIMPLON_DEF Jsimplon_Member *jsimplon_object_get_member(Jsimplon_Object *object
 	return NULL;
 }
 
-JSIMPLON_DEF size_t jsimplon_object_member_get_count(Jsimplon_Object *object)
+JSIMPLON_DEF size_t jsimplon_object_get_member_count(Jsimplon_Object *object)
 {
 	if (object == NULL)
 		return 0;
@@ -788,7 +788,7 @@ JSIMPLON_DEF size_t jsimplon_object_member_get_count(Jsimplon_Object *object)
 	return object->members_count;
 }
 
-JSIMPLON_DEF Jsimplon_Member *jsimplon_object_member_get_at_index(Jsimplon_Object *object, size_t index)
+JSIMPLON_DEF Jsimplon_Member *jsimplon_object_get_member_at_index(Jsimplon_Object *object, size_t index)
 {
 	if (object == NULL)
 		return NULL;
